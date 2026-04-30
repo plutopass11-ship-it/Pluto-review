@@ -5,11 +5,12 @@ import Link from 'next/link';
 import EmptyState from './shared/EmptyState';
 import './DashboardClient.css';
 
-export default function DashboardClient({ projects }) {
+export default function DashboardClient({ projects, serverError }) {
     useEffect(() => {
         // Troubleshooting: Check Kitsu connection status from the browser
         console.log('--- Client Review Debugging ---');
         console.log('Project data from server:', projects);
+        if (serverError) console.error('Server-side Error:', serverError);
         
         fetch('/api/debug-kitsu')
             .then(res => res.json())
@@ -21,7 +22,7 @@ export default function DashboardClient({ projects }) {
                 }
             })
             .catch(err => console.error('❌ Debug API Error:', err));
-    }, [projects]);
+    }, [projects, serverError]);
 
     // Compute aggregate stats from real data
     const totalShots = projects.reduce((sum, p) => sum + (p.total_shots || 0), 0);
@@ -31,6 +32,12 @@ export default function DashboardClient({ projects }) {
 
     return (
         <div className="dashboard-container animate-fade-in">
+            {serverError && (
+                <div style={{ padding: '1rem', background: '#fee2e2', color: '#991b1b', borderRadius: '8px', marginBottom: '1.5rem', border: '1px solid #f87171' }}>
+                    <strong>Server Error:</strong> {serverError}
+                    <p style={{ fontSize: '0.8rem', marginTop: '0.5rem' }}>The NAS failed to fetch data from Kitsu. Check the API URL and credentials.</p>
+                </div>
+            )}
             <header className="dashboard-header">
                 <div>
                     <h1 className="welcome-text">Welcome back.</h1>
