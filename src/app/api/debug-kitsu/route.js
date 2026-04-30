@@ -13,12 +13,25 @@ export async function GET() {
     const token = await getKitsuToken();
     const duration = Date.now() - startTime;
     
+    // Fetch raw projects to see what's available
+    const [rawProjects, taskTypes] = await Promise.all([
+      fetch(`${apiUrl}/data/projects`, {
+        headers: { Authorization: `Bearer ${token}` }
+      }).then(res => res.json()),
+      fetch(`${apiUrl}/data/task-types`, {
+        headers: { Authorization: `Bearer ${token}` }
+      }).then(res => res.json())
+    ]);
+    
     return Response.json({
       status: 'success',
       message: 'Successfully authenticated with Kitsu',
       apiUrl,
       email,
       authDurationMs: duration,
+      projectsCount: rawProjects.length,
+      availableProjects: rawProjects.map(p => ({ id: p.id, name: p.name, statusId: p.project_status_id })),
+      availableTaskTypes: taskTypes.map(t => t.name),
       tokenPreview: token ? `${token.substring(0, 10)}...` : 'none'
     });
   } catch (error) {
