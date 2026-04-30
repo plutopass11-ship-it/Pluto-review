@@ -10,10 +10,12 @@ services:
     ports:
       - "4888:3000"
     environment:
-      - KITSU_API_URL=http://192.168.1.60:3002/api
+      - KITSU_API_URL=http://host.docker.internal:3002/api
       - KITSU_EMAIL=plutobase@flyingpluto.ai
       - KITSU_PASSWORD=Styx@001
       - NODE_ENV=production
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     logging:
       driver: "json-file"
       options:
