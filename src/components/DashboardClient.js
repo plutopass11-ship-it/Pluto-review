@@ -1,8 +1,26 @@
+import { useEffect } from 'react';
 import Link from 'next/link';
 import EmptyState from './shared/EmptyState';
 import './DashboardClient.css';
 
 export default function DashboardClient({ projects }) {
+    useEffect(() => {
+        // Troubleshooting: Check Kitsu connection status from the browser
+        console.log('--- Client Review Debugging ---');
+        console.log('Project data from server:', projects);
+        
+        fetch('/api/debug-kitsu')
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    console.log('%c✅ Kitsu Connection: SUCCESS', 'color: #10b981; font-weight: bold;', data);
+                } else {
+                    console.error('❌ Kitsu Connection: FAILED', data);
+                }
+            })
+            .catch(err => console.error('❌ Debug API Error:', err));
+    }, [projects]);
+
     // Compute aggregate stats from real data
     const totalShots = projects.reduce((sum, p) => sum + (p.total_shots || 0), 0);
     const approvedShots = projects.reduce((sum, p) => sum + (p.approved_shots || 0), 0);
