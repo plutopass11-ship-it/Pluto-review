@@ -44,7 +44,6 @@ USER nextjs
 EXPOSE 4888
 
 ENV PORT 4888
-# set hostname to localhost
-ENV HOSTNAME "0.0.0.0"
+ENV HOSTNAME 0.0.0.0
 
 CMD ["node", "server.js"]
