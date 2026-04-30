@@ -109,12 +109,16 @@ export async function getProjects() {
   ]);
 
   const statusMap = {};
-  statuses.forEach(s => statusMap[s.id] = s.name.toLowerCase());
+  statuses.forEach(s => {
+    if (s && s.id && s.name) {
+      statusMap[s.id] = s.name.toLowerCase();
+    }
+  });
 
   // Filter out 'closed' or 'archived'
   return projects.filter(p => {
     const statusName = statusMap[p.project_status_id] || '';
-    return statusName !== 'closed' && statusName !== 'archived';
+    return statusName !== 'closed' && statusName !== 'archived' && statusName !== 'completed';
   });
 }
 
