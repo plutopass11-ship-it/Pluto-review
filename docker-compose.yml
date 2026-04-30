@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  kitsu-client:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: kitsu-client
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - KITSU_API_URL=${KITSU_API_URL}
+      - KITSU_EMAIL=${KITSU_EMAIL}
+      - KITSU_PASSWORD=${KITSU_PASSWORD}
+      - NODE_ENV=production
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
