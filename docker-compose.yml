@@ -7,9 +7,10 @@ services:
       dockerfile: Dockerfile
     container_name: kitsu-client
     restart: always
-    network_mode: host
+    ports:
+      - "4888:4888"
     environment:
-      - KITSU_API_URL=http://localhost:3002/api
+      - KITSU_API_URL=http://172.17.0.1:3002/api
       - KITSU_EMAIL=plutobase@flyingpluto.ai
       - KITSU_PASSWORD=Styx@001
       - NODE_ENV=production
