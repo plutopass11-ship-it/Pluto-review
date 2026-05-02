@@ -5,16 +5,22 @@ import ToastProvider from '../components/shared/ToastProvider';
 export const metadata = {
   title: 'Parallax',
   description: 'Premium client project review',
+  manifest: '/manifest.json',
   icons: {
     icon: '/parallax-icon.jpeg',
     apple: '/parallax-icon.jpeg',
   },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'Parallax',
+  },
+  applicationName: 'Parallax',
 };
 
 export const viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
   viewportFit: 'cover',
 };
 

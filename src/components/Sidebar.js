@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import { Home, FolderOpen, Settings, LogOut, Download } from 'lucide-react';
 import './Sidebar.css';
 
@@ -6,7 +7,7 @@ export default function Sidebar() {
     return (
         <aside className="sidebar glass-panel">
             <div className="sidebar-header">
-                <div className="logo-placeholder" />
+                <Image src="/parallax-icon.jpeg" alt="Parallax" width={36} height={36} className="sidebar-logo" priority />
                 <h2 className="brand-name">Parallax</h2>
             </div>
 

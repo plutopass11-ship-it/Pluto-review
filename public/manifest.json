@@ -1,0 +1,17 @@
+{
+  "name": "Parallax",
+  "short_name": "Parallax",
+  "description": "Premium client project review",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0c10",
+  "theme_color": "#0a0c10",
+  "icons": [
+    {
+      "src": "/parallax-icon.jpeg",
+      "sizes": "any",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ]
+}
