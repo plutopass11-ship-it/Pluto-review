@@ -194,6 +194,11 @@ export async function getClientReviewTasks(projectId) {
         project_id: task.project_id,
         preview_status: latest?.status || null,
       };
+    })
+    .filter(item => {
+      const status = (item.task_status_name || '').toLowerCase();
+      const shortStatus = (item.task_status_short || '').toLowerCase();
+      return status !== 'todo' && shortStatus !== 'todo';
     });
 }
 
