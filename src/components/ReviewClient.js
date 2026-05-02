@@ -4,8 +4,8 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { formatUtcDate } from '@/lib/datetime';
 import {
-    ChevronLeft, Play, Pause, Download, CheckCircle, XCircle, SkipBack, SkipForward,
-    MessageSquare, Send, Maximize, Loader2, GitMerge, Repeat, MousePointer2, PenTool, Type, Eraser, Spline, X, Volume2, VolumeX
+    ChevronLeft, Play, Pause, Download, CheckCircle, SkipBack, SkipForward,
+    MessageSquare, Send, Maximize, Loader2, Repeat, MousePointer2, PenTool, Type, Eraser, Spline, X, Volume2, VolumeX
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import './ReviewClient.css';
@@ -169,6 +169,51 @@ export default function ReviewClient({ taskId, taskData, currentUser = 'Current 
         lastPoint.current = null;
     };
 
+    // ── Touch Events for Mobile ──
+    const handleTouchStart = (e) => {
+        if (activeTool === 'cursor' || !canvasRef.current) return;
+        if (e.cancelable) e.preventDefault();
+        
+        isDrawing.current = true;
+        const rect = canvasRef.current.getBoundingClientRect();
+        const touch = e.touches[0];
+        lastPoint.current = { 
+            x: touch.clientX - rect.left, 
+            y: touch.clientY - rect.top 
+        };
+    };
+
+    const handleTouchMove = (e) => {
+        if (!isDrawing.current || !canvasRef.current || !lastPoint.current) return;
+        if (e.cancelable) e.preventDefault();
+
+        const ctx = canvasRef.current.getContext('2d');
+        const rect = canvasRef.current.getBoundingClientRect();
+        const touch = e.touches[0];
+        const x = touch.clientX - rect.left;
+        const y = touch.clientY - rect.top;
+
+        if (activeTool === 'eraser') {
+            ctx.globalCompositeOperation = 'destination-out';
+            ctx.lineWidth = 20;
+        } else {
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.strokeStyle = drawColor;
+            ctx.lineWidth = 3;
+        }
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.beginPath();
+        ctx.moveTo(lastPoint.current.x, lastPoint.current.y);
+        ctx.lineTo(x, y);
+        ctx.stroke();
+        lastPoint.current = { x, y };
+    };
+
+    const handleTouchEnd = (e) => {
+        stopDraw();
+    };
+
     const clearCanvas = () => {
         if (!canvasRef.current) return;
         const ctx = canvasRef.current.getContext('2d');
@@ -215,9 +260,8 @@ export default function ReviewClient({ taskId, taskData, currentUser = 'Current 
     // Is the shot currently approved?
     const isApproved = statusShort === 'done' || statusShort === 'approved' || statusName?.toLowerCase() === 'done';
 
-    // ── Approve (Done) ──
     const handleApprove = async () => {
-        if (isApproved) return; // Already approved
+        if (isApproved) return; 
         setIsSubmitting(true);
         try {
             const doneStatus = taskStatuses.find(s =>
@@ -250,13 +294,11 @@ export default function ReviewClient({ taskId, taskData, currentUser = 'Current 
         setIsSubmitting(false);
     };
 
-    // ── Submit Comment → auto Retake ──
     const submitComment = async () => {
         if (!newComment.trim() || commentSubmitting) return;
         setCommentSubmitting(true);
 
         try {
-            // Find Retake status to auto-set when client leaves feedback
             const retakeStatus = taskStatuses.find(s =>
                 s.short_name === 'retake' || s.name.toLowerCase() === 'retake'
             );
@@ -273,7 +315,6 @@ export default function ReviewClient({ taskId, taskData, currentUser = 'Current 
 
             if (!res.ok) throw new Error('Failed to post comment');
 
-            // Auto-set status to Retake (switches Approve button back from 'Approved')
             if (retakeStatus) {
                 setStatusName('Retake');
                 setStatusShort('retake');
@@ -295,27 +336,30 @@ export default function ReviewClient({ taskId, taskData, currentUser = 'Current 
         setCommentSubmitting(false);
     };
 
-    // ── Compare Mode Slider ──
     const handleSliderMove = (e) => {
         if (!compareContainerRef.current) return;
         const rect = compareContainerRef.current.getBoundingClientRect();
-        const x = e.clientX - rect.left;
+        const x = (e.clientX || e.touches?.[0]?.clientX) - rect.left;
         const pct = Math.max(0, Math.min(100, (x / rect.width) * 100));
         setSliderPos(pct);
     };
 
     const handleSliderMouseDown = (e) => {
-        e.preventDefault();
+        if (e.cancelable && e.type === 'touchstart') e.preventDefault();
         isDragging.current = true;
         handleSliderMove(e);
-        const handleMove = (ev) => { if (isDragging.current) handleSliderMove(ev); };
-        const handleUp = () => {
+        const moveHandler = (ev) => { if (isDragging.current) handleSliderMove(ev); };
+        const upHandler = () => {
             isDragging.current = false;
-            window.removeEventListener('mousemove', handleMove);
-            window.removeEventListener('mouseup', handleUp);
+            window.removeEventListener('mousemove', moveHandler);
+            window.removeEventListener('mouseup', upHandler);
+            window.removeEventListener('touchmove', moveHandler);
+            window.removeEventListener('touchend', upHandler);
         };
-        window.addEventListener('mousemove', handleMove);
-        window.addEventListener('mouseup', handleUp);
+        window.addEventListener('mousemove', moveHandler);
+        window.addEventListener('mouseup', upHandler);
+        window.addEventListener('touchmove', moveHandler);
+        window.addEventListener('touchend', upHandler);
     };
 
     const openCompare = () => {
@@ -329,7 +373,6 @@ export default function ReviewClient({ taskId, taskData, currentUser = 'Current 
         setCompareMode(true);
     };
 
-    // ── Compare Mode Render ──
     if (compareMode) {
         return (
             <div className="review-container animate-fade-in">
@@ -369,7 +412,7 @@ export default function ReviewClient({ taskId, taskData, currentUser = 'Current 
                     </div>
                 </header>
                 <div className="compare-workspace">
-                    <div className="compare-container" ref={compareContainerRef} onMouseDown={handleSliderMouseDown}>
+                    <div className="compare-container" ref={compareContainerRef} onMouseDown={handleSliderMouseDown} onTouchStart={handleSliderMouseDown}>
                         <div className="compare-video-layer compare-layer-b">
                             <video ref={videoBRef} className="compare-video" src={compareB?.url || ''} loop={isLooping} muted={isMuted} />
                             <div className="compare-version-label label-b">{compareB?.name || 'Version B'}</div>
@@ -396,7 +439,6 @@ export default function ReviewClient({ taskId, taskData, currentUser = 'Current 
         );
     }
 
-    // ── Normal Review Mode ──
     return (
         <div className="review-container animate-fade-in">
             <header className="review-header glass-panel">
@@ -438,7 +480,6 @@ export default function ReviewClient({ taskId, taskData, currentUser = 'Current 
             </header>
 
             <div className="review-workspace">
-                {/* Left Toolbar */}
                 <aside className="tools-sidebar glass-panel">
                     <div className="tool-group">
                         <button className={`tool-btn ${activeTool === 'cursor' ? 'active' : ''}`} onClick={() => setActiveTool('cursor')} title="Select / Move">
@@ -468,7 +509,6 @@ export default function ReviewClient({ taskId, taskData, currentUser = 'Current 
                     </div>
                 </aside>
 
-                {/* Center - Player */}
                 <main className="player-section glass-panel">
                     <div className="video-container">
                         <video
@@ -484,7 +524,6 @@ export default function ReviewClient({ taskId, taskData, currentUser = 'Current 
                             <span>{currentUser}</span>
                             <span className="watermark-date">{watermarkDate}</span>
                         </div>
-                        {/* Drawing Canvas */}
                         {activeTool !== 'cursor' && (
                             <canvas
                                 ref={canvasRef}
@@ -494,6 +533,10 @@ export default function ReviewClient({ taskId, taskData, currentUser = 'Current 
                                 onMouseMove={draw}
                                 onMouseUp={stopDraw}
                                 onMouseLeave={stopDraw}
+                                onTouchStart={handleTouchStart}
+                                onTouchMove={handleTouchMove}
+                                onTouchEnd={handleTouchEnd}
+                                onTouchCancel={handleTouchEnd}
                             />
                         )}
                     </div>
@@ -541,7 +584,6 @@ export default function ReviewClient({ taskId, taskData, currentUser = 'Current 
                     </div>
                 </main>
 
-                {/* Right Sidebar */}
                 <aside className="review-sidebar glass-panel">
                     <div className="sidebar-section action-panel">
                         <h3>Decision</h3>
@@ -563,8 +605,6 @@ export default function ReviewClient({ taskId, taskData, currentUser = 'Current 
 
                     <div className="sidebar-section messages-panel">
                         <h3><MessageSquare size={16} className="inline-icon" /> Feedback Thread</h3>
-
-                        {/* Input area first (above thread) */}
                         <div className="comment-input-area-top">
                             <div className="input-wrapper">
                                 <textarea
@@ -585,7 +625,6 @@ export default function ReviewClient({ taskId, taskData, currentUser = 'Current 
                             </div>
                         </div>
 
-                        {/* Thread below */}
                         <div className="comments-list">
                             {comments.map(c => (
                                 <div key={c.id} className={`comment-bubble ${c.user.includes('Client') ? 'my-comment' : ''}`}>
