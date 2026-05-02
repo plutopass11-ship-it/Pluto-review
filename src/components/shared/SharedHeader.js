@@ -16,7 +16,7 @@ export default function SharedHeader({ projectId, projectName }) {
     <header className="shared-header glass-panel">
       <div className="header-left">
         <div className="logo-placeholder small" />
-        <h2 className="project-title">{projectName || 'Project Review'}</h2>
+        <h2 className="project-title">{projectName || 'Orbit'}</h2>
       </div>
 
       <nav className="header-tabs">

@@ -3,7 +3,7 @@ import '../components/responsive.css';
 import ToastProvider from '../components/shared/ToastProvider';
 
 export const metadata = {
-  title: 'Client Review',
+  title: 'Orbit',
   description: 'Premium client project review',
 };
 

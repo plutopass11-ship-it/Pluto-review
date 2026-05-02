@@ -7,7 +7,7 @@ export default function Sidebar() {
         <aside className="sidebar glass-panel">
             <div className="sidebar-header">
                 <div className="logo-placeholder" />
-                <h2 className="brand-name">Studio Review</h2>
+                <h2 className="brand-name">Orbit</h2>
             </div>
 
             <nav className="sidebar-nav">
