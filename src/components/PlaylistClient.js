@@ -827,7 +827,7 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
     };
 
     return (
-        <div className="playlist-container">
+        <div className={`playlist-container ${isSharedView ? 'client-theater-mode' : ''}`}>
             {/* Top bar */}
             <header className="playlist-header">
                 <div className="playlist-header-left">
