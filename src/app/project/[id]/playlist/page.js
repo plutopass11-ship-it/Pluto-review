@@ -73,6 +73,7 @@ export default async function PlaylistPage(props) {
             currentUser={currentUser} 
             initialComments={initialComments}
             initialShotId={initialShotId}
+            isSharedView={false}
         />
     );
 }

@@ -3,7 +3,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { usePathname } from 'next/navigation';
 import {
     Play, Pause, SkipBack, SkipForward, Repeat, Volume2, VolumeX,
     CheckCircle, MessageSquare, Send, Loader2, X, Download, ChevronDown,
@@ -54,10 +53,7 @@ function naturalSort(a, b) {
     return 0;
 }
 
-export default function PlaylistClient({ shots, projectId, projectName, currentUser, initialComments = [], initialShotId = null }) {
-    const pathname = usePathname();
-    const isSharedView = pathname?.startsWith('/shared/') ?? false;
-
+export default function PlaylistClient({ shots, projectId, projectName, currentUser, initialComments = [], initialShotId = null, isSharedView = false }) {
     // Group shots by sequence and sort each group naturally by shot name
     const sequences = useMemo(() => {
         const map = {};
