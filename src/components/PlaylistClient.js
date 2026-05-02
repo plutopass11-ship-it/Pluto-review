@@ -91,7 +91,16 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
     const [commentSubmitting, setCommentSubmitting] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [taskStatuses, setTaskStatuses] = useState([]);
-    const [openedShots, setOpenedShots] = useState([]);
+    const [openedShots, setOpenedShots] = useState(() => {
+        if (typeof window !== 'undefined') {
+            try {
+                return JSON.parse(localStorage.getItem('opened_shots') || '[]');
+            } catch { return []; }
+        }
+        return [];
+    });
+    const [hasPlayedOnce, setHasPlayedOnce] = useState(false);
+    const [isDraggingTimeline, setIsDraggingTimeline] = useState(false);
 
     // Annotation state
     const [annotationMode, setAnnotationMode] = useState(false);
@@ -165,11 +174,24 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
         fetch('/api/task-statuses').then(r => r.json()).then(data => { if (Array.isArray(data)) setTaskStatuses(data); }).catch(() => { });
         fetch('/api/read-status')
             .then(res => res.json())
-            .then(data => { if (data && !data.error) setOpenedShots(Object.keys(data)); })
+            .then(data => {
+                if (data && !data.error) {
+                    // Merge server data with localStorage so we don't lose shots opened on other devices
+                    const fromServer = Object.keys(data);
+                    const stored = JSON.parse(localStorage.getItem('opened_shots') || '[]');
+                    const merged = Array.from(new Set([...stored, ...fromServer]));
+                    setOpenedShots(merged);
+                    localStorage.setItem('opened_shots', JSON.stringify(merged));
+                }
+            })
             .catch(() => {
-                const stored = JSON.parse(localStorage.getItem('opened_shots') || '[]');
-                setOpenedShots(stored);
+                // Already loaded from localStorage in useState initializer
             });
+
+        // Global mouseup to stop timeline drag even if cursor leaves the element
+        const globalMouseUp = () => setIsDraggingTimeline(false);
+        window.addEventListener('mouseup', globalMouseUp);
+        return () => window.removeEventListener('mouseup', globalMouseUp);
     }, []);
 
     // URL param for initial sequence & shot
@@ -575,11 +597,13 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
         if (playPromise !== undefined) {
             playPromise.then(() => {
                 setIsPlaying(true);
+                setHasPlayedOnce(true);
             }).catch(() => {
                 setIsPlaying(false);
             });
         } else {
             setIsPlaying(true);
+            setHasPlayedOnce(true);
         }
     };
 
@@ -698,6 +722,7 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
         setAnnotationMode(false);
         setShowVersions(false);
         setQueuedAnnotations([]);
+        setHasPlayedOnce(false);
         clearCanvas();
 
         // iOS Safari requires play() to be called directly within a user gesture handler.
@@ -748,9 +773,49 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
         if (!videoRef.current || !duration) return;
         if (annotationMode) persistCurrentAnnotation();
         const rect = e.currentTarget.getBoundingClientRect();
-        const pct = (e.clientX - rect.left) / rect.width;
+        const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
         videoRef.current.currentTime = pct * duration;
         setCurrentTime(pct * duration);
+    };
+
+    // ── Timeline drag (mouse + touch) ──
+    const seekToClientX = (clientX, target) => {
+        if (!videoRef.current || !duration) return;
+        const rect = target.getBoundingClientRect();
+        const pct = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+        videoRef.current.currentTime = pct * duration;
+        setCurrentTime(pct * duration);
+    };
+
+    const handleTimelineMouseDown = (e) => {
+        setIsDraggingTimeline(true);
+        seekToClientX(e.clientX, e.currentTarget);
+    };
+
+    const handleTimelineMouseMove = (e) => {
+        if (!isDraggingTimeline) return;
+        e.preventDefault();
+        seekToClientX(e.clientX, e.currentTarget);
+    };
+
+    const handleTimelineMouseUp = () => {
+        setIsDraggingTimeline(false);
+    };
+
+    const handleTimelineTouchStart = (e) => {
+        if (e.touches.length !== 1) return;
+        setIsDraggingTimeline(true);
+        seekToClientX(e.touches[0].clientX, e.currentTarget);
+    };
+
+    const handleTimelineTouchMove = (e) => {
+        if (!isDraggingTimeline || e.touches.length !== 1) return;
+        e.preventDefault();
+        seekToClientX(e.touches[0].clientX, e.currentTarget);
+    };
+
+    const handleTimelineTouchEnd = () => {
+        setIsDraggingTimeline(false);
     };
 
     // ── Approve ──
@@ -1046,7 +1111,7 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
                                         onMouseLeave={endDraw}
                                     />
                                 )}
-                                {!isPlaying && !annotationMode && (
+                                {!hasPlayedOnce && !isPlaying && !annotationMode && (
                                     <div className="playlist-play-overlay" onClick={togglePlay}>
                                         <Play size={48} />
                                     </div>
@@ -1123,7 +1188,17 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
 
                     {/* Transport controls */}
                     <div className="playlist-controls">
-                        <div className="playlist-timeline" onClick={handleTimelineClick}>
+                        <div
+                            className="playlist-timeline"
+                            onClick={handleTimelineClick}
+                            onMouseDown={handleTimelineMouseDown}
+                            onMouseMove={handleTimelineMouseMove}
+                            onMouseUp={handleTimelineMouseUp}
+                            onMouseLeave={handleTimelineMouseUp}
+                            onTouchStart={handleTimelineTouchStart}
+                            onTouchMove={handleTimelineTouchMove}
+                            onTouchEnd={handleTimelineTouchEnd}
+                        >
                             <div className="playlist-timeline-progress" style={{ width: `${duration ? (currentTime / duration) * 100 : 0}%` }} />
                             {/* Comment frame dots */}
                             {duration > 0 && commentFrames.map((frame, i) => (
