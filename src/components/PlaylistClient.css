@@ -682,16 +682,15 @@
 
 .pl-annotation-disclaimer {
     position: absolute;
-    top: 8px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 30;
-    font-size: 0.75rem;
+    bottom: 72px;
+    left: 8px;
+    z-index: 15;
+    font-size: 0.7rem;
     font-weight: 500;
     color: #94a3b8;
     background: rgba(0, 0, 0, 0.5);
     backdrop-filter: blur(8px);
-    padding: 4px 12px;
+    padding: 4px 10px;
     border-radius: 20px;
     pointer-events: none;
     white-space: nowrap;
