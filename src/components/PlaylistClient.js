@@ -961,6 +961,7 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
                                     ref={videoRef}
                                     src={currentVideoUrl || ''}
                                     className="playlist-video"
+                                    preload="auto"
                                     onTimeUpdate={handleTimeUpdate}
                                     onLoadedMetadata={handleLoadedMetadata}
                                     onEnded={handleVideoEnded}

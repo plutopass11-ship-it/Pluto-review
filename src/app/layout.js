@@ -1,6 +1,7 @@
 import './globals.css';
 import '../components/responsive.css';
 import ToastProvider from '../components/shared/ToastProvider';
+import ServiceWorkerRegistration from '../components/ServiceWorkerRegistration';
 
 export const metadata = {
   title: 'Parallax',
@@ -30,6 +31,7 @@ export default function RootLayout({ children }) {
       <body className="app-layout">
         {children}
         <ToastProvider />
+        <ServiceWorkerRegistration />
       </body>
     </html>
   );
