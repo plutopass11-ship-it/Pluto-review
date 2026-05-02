@@ -1,7 +1,6 @@
 import { getPlaylistData, getCurrentUser, getProjectById, fetchKitsuData } from '@/lib/kitsu';
 import { formatUtcDateTime } from '@/lib/datetime';
 import PlaylistClient from '@/components/PlaylistClient';
-import SharedHeader from '@/components/shared/SharedHeader';
 
 export default async function SharedPlaylistPage(props) {
     const params = await props.params;
@@ -66,19 +65,13 @@ export default async function SharedPlaylistPage(props) {
     }
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
-            <SharedHeader projectId={id} projectName={projectName} />
-            <div style={{ flex: 1, overflow: 'hidden' }}>
-                <PlaylistClient 
-                    shots={shots} 
-                    projectId={id} 
-                    projectName={projectName} 
-                    currentUser={currentUser} 
-                    initialComments={initialComments}
-                    initialShotId={initialShotId}
-                    isClientView={true} 
-                />
-            </div>
-        </div>
+        <PlaylistClient 
+            shots={shots} 
+            projectId={id} 
+            projectName={projectName} 
+            currentUser={currentUser} 
+            initialComments={initialComments}
+            initialShotId={initialShotId}
+        />
     );
 }

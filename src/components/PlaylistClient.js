@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { usePathname } from 'next/navigation';
 import {
     Play, Pause, SkipBack, SkipForward, Repeat, Volume2, VolumeX,
     CheckCircle, MessageSquare, Send, Loader2, X, Download, ChevronDown,
@@ -53,7 +54,10 @@ function naturalSort(a, b) {
     return 0;
 }
 
-export default function PlaylistClient({ shots, projectId, projectName, currentUser, initialComments = [], initialShotId = null, isClientView = false }) {
+export default function PlaylistClient({ shots, projectId, projectName, currentUser, initialComments = [], initialShotId = null }) {
+    const pathname = usePathname();
+    const isSharedView = pathname?.startsWith('/shared/') ?? false;
+
     // Group shots by sequence and sort each group naturally by shot name
     const sequences = useMemo(() => {
         const map = {};
@@ -823,14 +827,15 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
     };
 
     return (
-        <div className={`playlist-container ${isClientView ? 'client-theater-mode' : ''}`}>
+        <div className="playlist-container">
             {/* Top bar */}
-            {!isClientView && (
             <header className="playlist-header">
                 <div className="playlist-header-left">
-                    <Link href={`/project/${projectId}`} className="playlist-back-btn">
-                        <X size={20} />
-                    </Link>
+                    {!isSharedView && (
+                        <Link href={`/project/${projectId}`} className="playlist-back-btn">
+                            <X size={20} />
+                        </Link>
+                    )}
                     <span className="playlist-project-name">{projectName}</span>
 
                     {/* Sequence picker */}
@@ -912,7 +917,6 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
                     </button>
                 </div>
             </header>
-            )}
 
             {/* Version bar */}
             {showVersions && versions.length > 0 && (
@@ -1146,7 +1150,7 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
                         <p className="pl-decision-hint">
                             {isCurrentApproved 
                                 ? 'This shot has been approved.' 
-                                : isClientView 
+                                : isSharedView 
                                     ? 'Requesting changes or approving will automatically update the status.'
                                     : 'Posting feedback will automatically request changes (Retake)'}
                         </p>
