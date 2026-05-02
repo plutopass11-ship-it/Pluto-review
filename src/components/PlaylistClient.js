@@ -6,7 +6,8 @@ import Image from 'next/image';
 import {
     Play, Pause, SkipBack, SkipForward, Repeat, Volume2, VolumeX,
     CheckCircle, MessageSquare, Send, Loader2, X, Download, ChevronDown,
-    ChevronLeft, ChevronRight, PenTool, Eraser, GitCompare, EyeOff
+    ChevronLeft, ChevronRight, PenTool, Eraser, GitCompare, EyeOff,
+    Maximize, Minimize
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import './PlaylistClient.css';
@@ -49,6 +50,7 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
     const [isLooping, setIsLooping] = useState(false);
     const [isMuted, setIsMuted] = useState(false);
     const [showSeqPicker, setShowSeqPicker] = useState(false);
+    const [isFullscreen, setIsFullscreen] = useState(false);
 
     // Per-shot status tracking
     const [shotStatuses, setShotStatuses] = useState({});
@@ -84,6 +86,7 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
 
     const videoRef = useRef(null);
     const filmstripRef = useRef(null);
+    const videoAreaRef = useRef(null);
 
     const activeSequence = sequences[activeSeqIndex] || { name: '', shots: [] };
     const seqShots = activeSequence.shots;
@@ -235,6 +238,9 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
             } else if (e.key === ' ') {
                 e.preventDefault();
                 togglePlay();
+            } else if (e.key === 'f' || e.key === 'F') {
+                e.preventDefault();
+                toggleFullscreen();
             }
         };
         window.addEventListener('keydown', handleKeyDown);
@@ -305,7 +311,9 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
         const canvas = canvasRef.current;
         if (!canvas) return null;
         const rect = canvas.getBoundingClientRect();
-        return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+        const clientX = e.touches?.[0]?.clientX ?? e.clientX;
+        const clientY = e.touches?.[0]?.clientY ?? e.clientY;
+        return { x: clientX - rect.left, y: clientY - rect.top };
     };
 
     const startDraw = (e) => {
@@ -342,6 +350,53 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
         isDrawing.current = false;
         lastPoint.current = null;
     };
+
+    // Native non-passive touch listeners on the canvas so we can preventDefault
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas || !annotationMode) return;
+
+        const handleTouchStart = (e) => {
+            if (activeTool === 'cursor') return;
+            e.preventDefault();
+            startDraw(e);
+        };
+        const handleTouchMove = (e) => {
+            if (!isDrawing.current) return;
+            e.preventDefault();
+            draw(e);
+        };
+        const handleTouchEnd = (e) => {
+            e.preventDefault();
+            endDraw();
+        };
+
+        canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+        canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+        canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
+
+        return () => {
+            canvas.removeEventListener('touchstart', handleTouchStart);
+            canvas.removeEventListener('touchmove', handleTouchMove);
+            canvas.removeEventListener('touchend', handleTouchEnd);
+        };
+    }, [annotationMode, activeTool]);
+
+    // Lock page scroll while annotating on mobile
+    useEffect(() => {
+        if (!annotationMode) return;
+        const preventScroll = (e) => { e.preventDefault(); };
+        document.body.style.touchAction = 'none';
+        document.body.style.overscrollBehavior = 'none';
+        document.documentElement.style.touchAction = 'none';
+        document.addEventListener('touchmove', preventScroll, { passive: false });
+        return () => {
+            document.body.style.touchAction = '';
+            document.body.style.overscrollBehavior = '';
+            document.documentElement.style.touchAction = '';
+            document.removeEventListener('touchmove', preventScroll);
+        };
+    }, [annotationMode]);
 
     // Capture annotation as base64 image (video frame + drawings composited)
     const captureAnnotation = () => {
@@ -484,6 +539,23 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
         videoRef.current.currentTime = newTime;
         setCurrentTime(newTime);
     };
+
+    // ── Fullscreen ──
+    const toggleFullscreen = () => {
+        const area = videoAreaRef.current;
+        if (!area) return;
+        if (!document.fullscreenElement) {
+            area.requestFullscreen?.().catch(() => {});
+        } else {
+            document.exitFullscreen?.().catch(() => {});
+        }
+    };
+
+    useEffect(() => {
+        const handler = () => setIsFullscreen(!!document.fullscreenElement);
+        document.addEventListener('fullscreenchange', handler);
+        return () => document.removeEventListener('fullscreenchange', handler);
+    }, []);
 
     // Effect to handle video loading when shot changes
     useEffect(() => {
@@ -779,7 +851,16 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
             {/* Main content */}
             <div className="playlist-main">
                 {/* Video area */}
-                <div className="playlist-video-area">
+                <div className="playlist-video-area" ref={videoAreaRef}>
+                    {/* Fullscreen top bar */}
+                    {isFullscreen && (
+                        <div className="fs-top-bar">
+                            <span className="fs-shot-name">{currentShot?.entity_name || 'Shot'}</span>
+                            <button className="fs-close-btn" onClick={toggleFullscreen} title="Exit Fullscreen (Esc)">
+                                <Minimize size={18} />
+                            </button>
+                        </div>
+                    )}
                     <div className="playlist-video-wrapper">
                         {hasVisibleVideo ? (
                             <>
@@ -916,6 +997,9 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
                                 </button>
                                 <button className="pl-ctrl-btn" onClick={() => setIsMuted(!isMuted)} title={isMuted ? 'Unmute' : 'Mute'}>
                                     {isMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
+                                </button>
+                                <button className="pl-ctrl-btn" onClick={toggleFullscreen} title={isFullscreen ? 'Exit Fullscreen (f)' : 'Fullscreen (f)'}>
+                                    {isFullscreen ? <Minimize size={16} /> : <Maximize size={16} />}
                                 </button>
                             </div>
                         </div>

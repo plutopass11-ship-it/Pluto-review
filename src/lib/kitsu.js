@@ -279,7 +279,8 @@ export async function updateTaskStatus(taskId, statusName, commentText = "") {
 export async function getCurrentUser() {
   const persons = await fetchKitsuData('/data/persons').catch(() => []);
   const me = persons.find(p => p.email?.toLowerCase() === kitsuConfig.email?.toLowerCase());
-  return me ? `${me.first_name} ${me.last_name}` : 'Current User';
+  if (!me) return { displayName: 'Current User', id: null, realName: null };
+  return { displayName: 'Client', id: me.id, realName: `${me.first_name} ${me.last_name}`.trim() };
 }
 
 export async function getTaskStatuses() {

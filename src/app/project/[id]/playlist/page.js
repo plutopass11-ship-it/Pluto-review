@@ -11,6 +11,7 @@ export default async function PlaylistPage(props) {
 
     let shots = [];
     let currentUser = 'Current User';
+    let currentUserId = null;
     let projectName = 'Project';
     let initialComments = [];
     let initialShotId = shotId;
@@ -22,7 +23,8 @@ export default async function PlaylistPage(props) {
             getProjectById(id)
         ]);
         shots = playlistData;
-        currentUser = user;
+        currentUser = user.displayName || user;
+        currentUserId = user.id || null;
         if (project) projectName = project.name;
 
         // Fetch initial comments for the shot
@@ -40,6 +42,10 @@ export default async function PlaylistPage(props) {
             const personsMap = {};
             if (Array.isArray(personsData)) {
                 personsData.forEach(p => personsMap[p.id] = `${p.first_name || ''} ${p.last_name || ''}`.trim());
+            }
+            // Replace current user's real name with "Client" in existing comments
+            if (currentUserId && personsMap[currentUserId]) {
+                personsMap[currentUserId] = 'Client';
             }
 
             if (Array.isArray(commentsData)) {

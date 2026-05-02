@@ -10,17 +10,21 @@ export default async function SharedPlaylistPage(props) {
     const shotId = searchParams?.shotId || null;
 
     let shots = [];
-    let currentUser = 'Client User'; // Hardcode or fetch client name here
+    let currentUser = 'Client';
+    let currentUserId = null;
     let projectName = 'Project';
     let initialComments = [];
     let initialShotId = shotId;
 
     try {
-        const [playlistData, project] = await Promise.all([
+        const [playlistData, user, project] = await Promise.all([
             getPlaylistData(id),
+            getCurrentUser(),
             getProjectById(id)
         ]);
         shots = playlistData;
+        currentUser = user.displayName || user;
+        currentUserId = user.id || null;
         if (project) projectName = project.name;
 
         // Fetch initial comments for the shot
@@ -38,6 +42,10 @@ export default async function SharedPlaylistPage(props) {
             const personsMap = {};
             if (Array.isArray(personsData)) {
                 personsData.forEach(p => personsMap[p.id] = `${p.first_name || ''} ${p.last_name || ''}`.trim());
+            }
+            // Replace current user's real name with "Client" in existing comments
+            if (currentUserId && personsMap[currentUserId]) {
+                personsMap[currentUserId] = 'Client';
             }
 
             if (Array.isArray(commentsData)) {

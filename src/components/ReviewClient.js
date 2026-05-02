@@ -37,6 +37,30 @@ export default function ReviewClient({ taskId, taskData, currentUser = 'Current 
     const [drawColor, setDrawColor] = useState('#06b6d4');
     const isDrawing = useRef(false);
     const lastPoint = useRef(null);
+    const [debugCoords, setDebugCoords] = useState(null);
+
+    // Debug function to check current state
+    const debugPageState = () => {
+        console.log('🔍 PAGE STATE DEBUG:');
+        console.log('- Body position:', document.body.style.position);
+        console.log('- Body overflow:', document.body.style.overflow);
+        console.log('- Body touch-action:', document.body.style.touchAction);
+        console.log('- HTML overflow:', document.documentElement.style.overflow);
+        console.log('- Drawing overlay exists:', !!document.getElementById('drawing-overlay'));
+        console.log('- Active tool:', activeTool);
+        console.log('- Canvas exists:', !!canvasRef.current);
+        console.log('- Window scroll:', window.scrollX, window.scrollY);
+        console.log('- Document scroll:', document.documentElement.scrollLeft, document.documentElement.scrollTop);
+    };
+
+    // Expose debug function globally for console access
+    useEffect(() => {
+        window.debugDrawing = debugPageState;
+        console.log('🔧 Debug function available: window.debugDrawing()');
+        return () => {
+            delete window.debugDrawing;
+        };
+    }, []);
 
     // Task statuses cache
     const [taskStatuses, setTaskStatuses] = useState([]);
@@ -112,8 +136,15 @@ export default function ReviewClient({ taskId, taskData, currentUser = 'Current 
             imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         }
 
-        canvas.width = wrapper.clientWidth;
-        canvas.height = wrapper.clientHeight;
+        const rect = wrapper.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+
+        // Set actual canvas buffer size (accounting for retina displays)
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+
+        // Scale the drawing context so everything draws at the correct size
+        ctx.scale(dpr, dpr);
 
         // Restore drawing data
         if (imageData) {
@@ -121,7 +152,7 @@ export default function ReviewClient({ taskId, taskData, currentUser = 'Current 
             tempCanvas.width = imageData.width;
             tempCanvas.height = imageData.height;
             tempCanvas.getContext('2d').putImageData(imageData, 0, 0);
-            ctx.drawImage(tempCanvas, 0, 0, canvas.width, canvas.height);
+            ctx.drawImage(tempCanvas, 0, 0, rect.width, rect.height);
         }
     }, []);
 
@@ -133,28 +164,88 @@ export default function ReviewClient({ taskId, taskData, currentUser = 'Current 
         }
     }, [activeTool, setupCanvas]);
 
+    // Initialize canvas size on first render when tool is drawing
+    useEffect(() => {
+        if (activeTool !== 'cursor' && canvasRef.current) {
+            // Short delay to ensure DOM is ready
+            const timer = setTimeout(setupCanvas, 50);
+            return () => clearTimeout(timer);
+        }
+    }, [activeTool]);
+
+    // Global input lock for drawing tools
+    useEffect(() => {
+        const isDrawingTool = activeTool !== 'cursor';
+
+        if (isDrawingTool) {
+            // Lock scrolling - more aggressive approach
+            document.body.style.overflow = 'hidden';
+            document.documentElement.style.overflow = 'hidden';
+            document.body.style.touchAction = 'none';
+            document.body.style.overscrollBehavior = 'none';
+            document.documentElement.style.touchAction = 'none';
+
+            const preventScroll = (e) => {
+                e.preventDefault();
+            };
+
+            document.addEventListener('touchmove', preventScroll, { passive: false });
+            document.addEventListener('gesturestart', preventScroll);
+            document.addEventListener('gesturechange', preventScroll);
+            document.addEventListener('wheel', preventScroll, { passive: false });
+
+            // Also prevent scroll on the video container
+            const container = document.querySelector('.video-container');
+            if (container) {
+                container.style.overflow = 'hidden';
+            }
+
+            return () => {
+                document.body.style.overflow = '';
+                document.body.style.touchAction = '';
+                document.body.style.overscrollBehavior = '';
+                document.documentElement.style.overflow = '';
+                document.documentElement.style.touchAction = '';
+                document.removeEventListener('touchmove', preventScroll);
+                document.removeEventListener('gesturestart', preventScroll);
+                document.removeEventListener('gesturechange', preventScroll);
+                document.removeEventListener('wheel', preventScroll);
+                if (container) {
+                    container.style.overflow = '';
+                }
+            };
+        }
+    }, [activeTool]);
+
     const startDraw = (e) => {
         if (activeTool === 'cursor' || !canvasRef.current) return;
-        console.log('Start Draw (Mouse)', e.clientX, e.clientY);
+        console.log('Start Draw (Pointer)', e.clientX, e.clientY);
+        e.preventDefault();
         isDrawing.current = true;
         const rect = canvasRef.current.getBoundingClientRect();
-        lastPoint.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+        const dpr = window.devicePixelRatio || 1;
+        lastPoint.current = { 
+            x: (e.clientX - rect.left) / dpr, 
+            y: (e.clientY - rect.top) / dpr 
+        };
     };
 
     const draw = (e) => {
         if (!isDrawing.current || !canvasRef.current || !lastPoint.current) return;
+        e.preventDefault();
         const ctx = canvasRef.current.getContext('2d');
         const rect = canvasRef.current.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
+        const dpr = window.devicePixelRatio || 1;
+        const x = (e.clientX - rect.left) / dpr;
+        const y = (e.clientY - rect.top) / dpr;
 
         if (activeTool === 'eraser') {
             ctx.globalCompositeOperation = 'destination-out';
-            ctx.lineWidth = 20;
+            ctx.lineWidth = 20 / dpr;
         } else {
             ctx.globalCompositeOperation = 'source-over';
             ctx.strokeStyle = drawColor;
-            ctx.lineWidth = 3;
+            ctx.lineWidth = 3 / dpr;
         }
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
@@ -170,67 +261,87 @@ export default function ReviewClient({ taskId, taskData, currentUser = 'Current 
         lastPoint.current = null;
     };
 
-    // ── Touch Events for Mobile ──
-    const handleTouchStart = useCallback((e) => {
-        if (activeTool === 'cursor' || !canvasRef.current) return;
-        console.log('Touch Start', e.touches[0].clientX, e.touches[0].clientY);
-        if (e.cancelable) e.preventDefault();
-        
-        isDrawing.current = true;
-        const rect = canvasRef.current.getBoundingClientRect();
-        const touch = e.touches[0];
-        lastPoint.current = { 
-            x: touch.clientX - rect.left, 
-            y: touch.clientY - rect.top 
-        };
-    }, [activeTool]);
-
-    const handleTouchMove = useCallback((e) => {
-        if (!isDrawing.current || !canvasRef.current || !lastPoint.current) return;
-        if (e.cancelable) e.preventDefault();
-
-        const ctx = canvasRef.current.getContext('2d');
-        const rect = canvasRef.current.getBoundingClientRect();
-        const touch = e.touches[0];
-        const x = touch.clientX - rect.left;
-        const y = touch.clientY - rect.top;
-
-        if (activeTool === 'eraser') {
-            ctx.globalCompositeOperation = 'destination-out';
-            ctx.lineWidth = 20;
-        } else {
-            ctx.globalCompositeOperation = 'source-over';
-            ctx.strokeStyle = drawColor;
-            ctx.lineWidth = 3;
-        }
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-        ctx.beginPath();
-        ctx.moveTo(lastPoint.current.x, lastPoint.current.y);
-        ctx.lineTo(x, y);
-        ctx.stroke();
-        lastPoint.current = { x, y };
-    }, [activeTool, drawColor]);
-
-    const handleTouchEnd = useCallback((e) => {
-        stopDraw();
-    }, []);
-
-    // Manual listener attachment for non-passive touch events
+    // Manual listener attachment for pointer events
     useEffect(() => {
         const canvas = canvasRef.current;
         if (!canvas || activeTool === 'cursor') return;
 
-        canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
-        canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
-        canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
+        const handlePointerDown = (e) => {
+            if (activeTool === 'cursor') return;
+            console.log(`🎨 CANVAS DOWN: ${e.clientX}, ${e.clientY} | Tool: ${activeTool} | Pointer: ${e.pointerType}`);
+            e.preventDefault();
+            e.stopPropagation();
+
+            isDrawing.current = true;
+            const rect = canvas.getBoundingClientRect();
+            lastPoint.current = {
+                x: e.clientX - rect.left,
+                y: e.clientY - rect.top
+            };
+            // Resize canvas if needed
+            const dpr = window.devicePixelRatio || 1;
+            if (canvas.width !== Math.round(rect.width * dpr) || canvas.height !== Math.round(rect.height * dpr)) {
+                canvas.width = Math.round(rect.width * dpr);
+                canvas.height = Math.round(rect.height * dpr);
+                const ctx2 = canvas.getContext('2d');
+                ctx2.scale(dpr, dpr);
+            }
+            console.log(`📍 Canvas coords: ${lastPoint.current.x}, ${lastPoint.current.y} | DPR: ${dpr} | Rect: ${rect.width}x${rect.height}`);
+        };
+
+        const handlePointerMove = (e) => {
+            if (!isDrawing.current || !lastPoint.current) return;
+            console.log(`🎨 CANVAS MOVE: ${e.clientX}, ${e.clientY}`);
+            e.preventDefault();
+            e.stopPropagation();
+
+            const ctx = canvas.getContext('2d');
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            // Update debug coordinates
+            setDebugCoords({ x: Math.round(x), y: Math.round(y), rawX: e.clientX, rawY: e.clientY });
+
+            if (activeTool === 'eraser') {
+                ctx.globalCompositeOperation = 'destination-out';
+                ctx.lineWidth = 20;
+            } else {
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.strokeStyle = drawColor;
+                ctx.lineWidth = 3;
+            }
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.beginPath();
+            ctx.moveTo(lastPoint.current.x, lastPoint.current.y);
+            ctx.lineTo(x, y);
+            ctx.stroke();
+            lastPoint.current = { x, y };
+        };
+
+        const handlePointerUp = (e) => {
+            console.log(`🎨 CANVAS UP: ${e.clientX}, ${e.clientY}`);
+            e.preventDefault();
+            e.stopPropagation();
+            stopDraw();
+            setDebugCoords(null);
+        };
+
+        canvas.addEventListener('pointerdown', handlePointerDown, { passive: false });
+        canvas.addEventListener('pointermove', handlePointerMove, { passive: false });
+        canvas.addEventListener('pointerup', handlePointerUp, { passive: false });
+        canvas.addEventListener('pointerleave', handlePointerUp, { passive: false });
+        canvas.addEventListener('pointercancel', handlePointerUp, { passive: false });
 
         return () => {
-            canvas.removeEventListener('touchstart', handleTouchStart);
-            canvas.removeEventListener('touchmove', handleTouchMove);
-            canvas.removeEventListener('touchend', handleTouchEnd);
+            canvas.removeEventListener('pointerdown', handlePointerDown);
+            canvas.removeEventListener('pointermove', handlePointerMove);
+            canvas.removeEventListener('pointerup', handlePointerUp);
+            canvas.removeEventListener('pointerleave', handlePointerUp);
+            canvas.removeEventListener('pointercancel', handlePointerUp);
         };
-    }, [activeTool, handleTouchStart, handleTouchMove, handleTouchEnd]);
+    }, [activeTool, drawColor]);
 
     const clearCanvas = () => {
         if (!canvasRef.current) return;
@@ -542,17 +653,18 @@ export default function ReviewClient({ taskId, taskData, currentUser = 'Current 
                             <span>{currentUser}</span>
                             <span className="watermark-date">{watermarkDate}</span>
                         </div>
-                        {activeTool !== 'cursor' && (
-                            <canvas
+                        <canvas
                                 ref={canvasRef}
                                 className="canvas-overlay"
-                                style={{ cursor: activeTool === 'eraser' ? 'cell' : 'crosshair' }}
-                                onMouseDown={startDraw}
-                                onMouseMove={draw}
-                                onMouseUp={stopDraw}
-                                onMouseLeave={stopDraw}
+                                style={{
+                                    opacity: activeTool === 'cursor' ? 0 : 1,
+                                    pointerEvents: activeTool === 'cursor' ? 'none' : 'auto',
+                                    touchAction: 'none'
+                                }}
                             />
-                        )}
+                        <div className="debug-overlay" style={{ display: debugCoords ? 'block' : 'none' }}>
+                            Canvas: ({debugCoords?.x}, {debugCoords?.y}) | Raw: ({debugCoords?.rawX}, {debugCoords?.rawY})
+                        </div>
                     </div>
 
                     <div className="player-controls">
