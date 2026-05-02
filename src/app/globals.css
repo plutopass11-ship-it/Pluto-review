@@ -147,6 +147,16 @@ p {
   min-width: 0;
 }
 
+/* Shared layout — must fill viewport like main-content does */
+.shared-client-layout {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  max-width: 100vw;
+  min-width: 0;
+  overflow: hidden;
+}
+
 /* Hide sidebar in playlist cinema mode */
 body:has(.playlist-container) .sidebar {
   display: none;
