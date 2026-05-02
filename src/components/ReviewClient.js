@@ -135,6 +135,7 @@ export default function ReviewClient({ taskId, taskData, currentUser = 'Current 
 
     const startDraw = (e) => {
         if (activeTool === 'cursor' || !canvasRef.current) return;
+        console.log('Start Draw (Mouse)', e.clientX, e.clientY);
         isDrawing.current = true;
         const rect = canvasRef.current.getBoundingClientRect();
         lastPoint.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
@@ -170,8 +171,9 @@ export default function ReviewClient({ taskId, taskData, currentUser = 'Current 
     };
 
     // ── Touch Events for Mobile ──
-    const handleTouchStart = (e) => {
+    const handleTouchStart = useCallback((e) => {
         if (activeTool === 'cursor' || !canvasRef.current) return;
+        console.log('Touch Start', e.touches[0].clientX, e.touches[0].clientY);
         if (e.cancelable) e.preventDefault();
         
         isDrawing.current = true;
@@ -181,9 +183,9 @@ export default function ReviewClient({ taskId, taskData, currentUser = 'Current 
             x: touch.clientX - rect.left, 
             y: touch.clientY - rect.top 
         };
-    };
+    }, [activeTool]);
 
-    const handleTouchMove = (e) => {
+    const handleTouchMove = useCallback((e) => {
         if (!isDrawing.current || !canvasRef.current || !lastPoint.current) return;
         if (e.cancelable) e.preventDefault();
 
@@ -208,11 +210,27 @@ export default function ReviewClient({ taskId, taskData, currentUser = 'Current 
         ctx.lineTo(x, y);
         ctx.stroke();
         lastPoint.current = { x, y };
-    };
+    }, [activeTool, drawColor]);
 
-    const handleTouchEnd = (e) => {
+    const handleTouchEnd = useCallback((e) => {
         stopDraw();
-    };
+    }, []);
+
+    // Manual listener attachment for non-passive touch events
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas || activeTool === 'cursor') return;
+
+        canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+        canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+        canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
+
+        return () => {
+            canvas.removeEventListener('touchstart', handleTouchStart);
+            canvas.removeEventListener('touchmove', handleTouchMove);
+            canvas.removeEventListener('touchend', handleTouchEnd);
+        };
+    }, [activeTool, handleTouchStart, handleTouchMove, handleTouchEnd]);
 
     const clearCanvas = () => {
         if (!canvasRef.current) return;
@@ -533,10 +551,6 @@ export default function ReviewClient({ taskId, taskData, currentUser = 'Current 
                                 onMouseMove={draw}
                                 onMouseUp={stopDraw}
                                 onMouseLeave={stopDraw}
-                                onTouchStart={handleTouchStart}
-                                onTouchMove={handleTouchMove}
-                                onTouchEnd={handleTouchEnd}
-                                onTouchCancel={handleTouchEnd}
                             />
                         )}
                     </div>
