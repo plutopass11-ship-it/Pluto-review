@@ -151,6 +151,34 @@
     color: #67e8f9;
 }
 
+.pl-hide-done-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 36px;
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-decoration: none;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #94a3b8;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.pl-hide-done-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+}
+
+.pl-hide-done-btn.active {
+    background: rgba(16, 185, 129, 0.15);
+    border-color: rgba(16, 185, 129, 0.3);
+    color: #34d399;
+}
+
 .seq-picker-wrapper {
     position: relative;
 }
@@ -1424,7 +1452,8 @@
 
     /* Compact action buttons */
     .playlist-download-btn,
-    .pl-version-btn {
+    .pl-version-btn,
+    .pl-hide-done-btn {
         width: auto;
         padding: 6px 10px;
         min-height: 32px;
@@ -1605,7 +1634,8 @@
     }
 
     .playlist-download-btn,
-    .pl-version-btn {
+    .pl-version-btn,
+    .pl-hide-done-btn {
         padding: 5px 8px;
         font-size: 0.7rem;
     }

@@ -7,7 +7,7 @@ import {
     Play, Pause, SkipBack, SkipForward, Repeat, Volume2, VolumeX,
     CheckCircle, MessageSquare, Send, Loader2, X, Download, ChevronDown,
     ChevronLeft, ChevronRight, PenTool, Eraser, GitCompare, EyeOff,
-    Maximize, Minimize
+    Maximize, Minimize, Eye
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import './PlaylistClient.css';
@@ -30,8 +30,31 @@ function buildFrameLabel(frames = []) {
     return uniqueSortedFrames(frames).map((frame) => `[Frame ${frame}]`).join(' ');
 }
 
+/**
+ * Natural sort comparator — splits strings into alternating text / number chunks.
+ * Handles any shot naming convention: sh_05, Shot_07_A, sht_10, ST_01, etc.
+ */
+function naturalSort(a, b) {
+    const re = /\d+|\D+/g;
+    const chunksA = String(a).match(re) || [];
+    const chunksB = String(b).match(re) || [];
+    const len = Math.max(chunksA.length, chunksB.length);
+    for (let i = 0; i < len; i++) {
+        const ca = chunksA[i] || '';
+        const cb = chunksB[i] || '';
+        const na = parseInt(ca, 10);
+        const nb = parseInt(cb, 10);
+        if (!isNaN(na) && !isNaN(nb) && na !== nb) {
+            return na - nb;
+        }
+        const cmp = String(ca).localeCompare(String(cb), undefined, { sensitivity: 'base' });
+        if (cmp !== 0) return cmp;
+    }
+    return 0;
+}
+
 export default function PlaylistClient({ shots, projectId, projectName, currentUser, initialComments = [], initialShotId = null, isClientView = false }) {
-    // Group shots by sequence
+    // Group shots by sequence and sort each group naturally by shot name
     const sequences = useMemo(() => {
         const map = {};
         shots.forEach(shot => {
@@ -39,7 +62,10 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
             if (!map[seq]) map[seq] = [];
             map[seq].push(shot);
         });
-        return Object.entries(map).map(([name, items]) => ({ name, shots: items }));
+        return Object.entries(map).map(([name, items]) => ({
+            name,
+            shots: items.sort((a, b) => naturalSort(a.entity_name || '', b.entity_name || ''))
+        }));
     }, [shots]);
 
     const [activeSeqIndex, setActiveSeqIndex] = useState(0);
@@ -52,6 +78,7 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
     const [showSeqPicker, setShowSeqPicker] = useState(false);
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [isPhone, setIsPhone] = useState(false);
+    const [hideDone, setHideDone] = useState(true);
 
     // Per-shot status tracking
     const [shotStatuses, setShotStatuses] = useState({});
@@ -96,6 +123,23 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
     const hasVisibleVideo = Boolean(currentShot?.video_url) && !isShotProcessing;
 
     const currentFrame = Math.floor(currentTime * FPS);
+
+    // Done-shot visibility helper
+    const isShotDone = useCallback((shot) => {
+        const s = shotStatuses[shot.id];
+        if (s) {
+            const short = (s.short || '').toLowerCase();
+            return short === 'done' || short === 'approved';
+        }
+        const short = (shot.task_status_short || '').toLowerCase();
+        return short === 'done' || short === 'approved';
+    }, [shotStatuses]);
+
+    // Filmstrip shows only non-done shots when hideDone is active
+    const visibleSeqShots = useMemo(() => {
+        if (!hideDone) return seqShots;
+        return seqShots.filter((s) => !isShotDone(s));
+    }, [seqShots, hideDone, isShotDone]);
 
     const getCanvasContext = useCallback((canvas, options = {}) => {
         if (!canvas) return null;
@@ -818,6 +862,15 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
                     </span>
                 </div>
                 <div className="playlist-header-right">
+                    {/* Hide / Show Done toggle */}
+                    <button
+                        className={`pl-hide-done-btn ${hideDone ? 'active' : ''}`}
+                        onClick={() => setHideDone((v) => !v)}
+                        title={hideDone ? 'Show done shots' : 'Hide done shots'}
+                    >
+                        {hideDone ? <EyeOff size={14} /> : <Eye size={14} />}
+                        <span>{hideDone ? 'Done hidden' : 'Done visible'}</span>
+                    </button>
                     {/* Annotation toggle — hidden on phone (use floating FAB instead) */}
                     {!isPhone && (
                         <button
@@ -1180,17 +1233,18 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
 
             {/* Bottom filmstrip */}
             <div className="playlist-filmstrip" ref={filmstripRef}>
-                {seqShots.map((shot, i) => {
+                {visibleSeqShots.map((shot) => {
                     const status = getEffectiveStatus(shot);
                     const statusColor = getStatusColor(status.short);
-                    const isActive = i === currentIndex;
+                    const isActive = shot.id === currentShot?.id;
                     const isUnopened = !openedShots.includes(shot.id);
+                    const realIndex = seqShots.findIndex((s) => s.id === shot.id);
 
                     return (
                         <button
                             key={shot.id}
                             className={`filmstrip-card ${isActive ? 'active' : ''} ${isUnopened ? 'unopened' : ''}`}
-                            onClick={() => jumpToShot(i)}
+                            onClick={() => jumpToShot(realIndex)}
                             style={{ '--status-color': statusColor }}
                         >
                             <div className="filmstrip-thumb">

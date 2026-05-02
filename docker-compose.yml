@@ -19,3 +19,10 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared
+    restart: always
+    command: tunnel --no-autoupdate run --token eyJhIjoiN2RhYWI0YmY0Zjc3MTRkNzBiMjFjYjQyN2U1NzU0ZWYiLCJ0IjoiNjFkZTUxNjktMGY2OC00ZDAzLTgxZjUtOWExNTg1ZGU5OTU0IiwicyI6IlpEa3hZV0kxTW1NdE1UUm1aaTAwTUdZekxXSmxZV1l0TlRkallqWTJZbVZsTVRNeCJ9
+    depends_on:
+      - kitsu-client
