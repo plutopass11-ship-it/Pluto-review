@@ -551,10 +551,13 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
             videoRef.current.play().catch(() => {
                 setIsPlaying(false);
             });
-        } else if (currentIndex < seqShots.length - 1) {
-            jumpToShot(currentIndex + 1);
         } else {
-            setIsPlaying(false);
+            const nextIdx = getNextVisibleIndex(currentIndex);
+            if (nextIdx >= 0) {
+                jumpToShot(nextIdx);
+            } else {
+                setIsPlaying(false);
+            }
         }
     };
 
@@ -672,6 +675,24 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
         setShowVersions(false);
         setQueuedAnnotations([]);
         clearCanvas();
+    };
+
+    // Find next visible shot index (skipping hidden Done shots)
+    const getNextVisibleIndex = (fromIndex) => {
+        if (!hideDone) return fromIndex + 1;
+        for (let i = fromIndex + 1; i < seqShots.length; i++) {
+            if (!isShotDone(seqShots[i])) return i;
+        }
+        return -1;
+    };
+
+    // Find previous visible shot index (skipping hidden Done shots)
+    const getPrevVisibleIndex = (fromIndex) => {
+        if (!hideDone) return fromIndex - 1;
+        for (let i = fromIndex - 1; i >= 0; i--) {
+            if (!isShotDone(seqShots[i])) return i;
+        }
+        return -1;
     };
 
     const switchSequence = (seqIdx) => {
@@ -962,6 +983,7 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
                                     src={currentVideoUrl || ''}
                                     className="playlist-video"
                                     preload="auto"
+                                    playsInline
                                     onTimeUpdate={handleTimeUpdate}
                                     onLoadedMetadata={handleLoadedMetadata}
                                     onEnded={handleVideoEnded}
@@ -1009,15 +1031,10 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
 
                     {/* Phone floating annotate / done buttons */}
                     {isPhone && hasVisibleVideo && !annotationMode && (
-                        <>
-                            <button className="pl-fab-annotate" onClick={handlePhoneAnnotate} title="Annotate in fullscreen">
-                                <PenTool size={20} />
-                                <span>Annotate</span>
-                            </button>
-                            <div className="pl-annotation-disclaimer">
-                                Tap Annotate to draw in fullscreen, or exit to comment
-                            </div>
-                        </>
+                        <button className="pl-fab-annotate" onClick={handlePhoneAnnotate} title="Annotate in fullscreen">
+                            <PenTool size={20} />
+                            <span>Annotate</span>
+                        </button>
                     )}
                     {isPhone && annotationMode && (
                         <button className="pl-fab-done" onClick={handlePhoneDone} title="Finish and comment">
@@ -1090,7 +1107,7 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
                         </div>
                         <div className="playlist-control-bar">
                             <div className="playlist-controls-left">
-                                <button className="pl-ctrl-btn" onClick={() => jumpToShot(currentIndex - 1)} disabled={currentIndex === 0} title="Previous Shot">
+                                <button className="pl-ctrl-btn" onClick={() => { const idx = getPrevVisibleIndex(currentIndex); if (idx >= 0) jumpToShot(idx); }} disabled={getPrevVisibleIndex(currentIndex) < 0} title="Previous Shot">
                                     <SkipBack size={18} />
                                 </button>
                                 <button className="pl-ctrl-btn" onClick={() => stepFrame(-1)} title="Previous Frame (← key)">
@@ -1102,10 +1119,15 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
                                 <button className="pl-ctrl-btn" onClick={() => stepFrame(1)} title="Next Frame (→ key)">
                                     <ChevronRight size={16} />
                                 </button>
-                                <button className="pl-ctrl-btn" onClick={() => jumpToShot(currentIndex + 1)} disabled={currentIndex === seqShots.length - 1} title="Next Shot">
+                                <button className="pl-ctrl-btn" onClick={() => { const idx = getNextVisibleIndex(currentIndex); if (idx >= 0) jumpToShot(idx); }} disabled={getNextVisibleIndex(currentIndex) < 0} title="Next Shot">
                                     <SkipForward size={18} />
                                 </button>
-                                <span className="pl-shot-counter">{String(currentIndex + 1).padStart(2, '0')} / {String(seqShots.length).padStart(2, '0')}</span>
+                                <span className="pl-shot-counter">
+                                    {hideDone
+                                        ? `${String(visibleSeqShots.findIndex(s => s.id === currentShot?.id) + 1).padStart(2, '0')} / ${String(visibleSeqShots.length).padStart(2, '0')}`
+                                        : `${String(currentIndex + 1).padStart(2, '0')} / ${String(seqShots.length).padStart(2, '0')}`
+                                    }
+                                </span>
                             </div>
                             <div className="playlist-controls-right">
                                 <span className="pl-frame-counter">F{currentFrame}</span>
