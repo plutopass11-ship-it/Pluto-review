@@ -6,8 +6,8 @@ export const metadata = {
   title: 'Parallax',
   description: 'Premium client project review',
   icons: {
-    icon: '/parallax-icon.png',
-    apple: '/parallax-icon.png',
+    icon: '/parallax-icon.jpeg',
+    apple: '/parallax-icon.jpeg',
   },
 };
 
