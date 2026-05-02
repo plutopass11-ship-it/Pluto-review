@@ -3,8 +3,12 @@ import '../components/responsive.css';
 import ToastProvider from '../components/shared/ToastProvider';
 
 export const metadata = {
-  title: 'Orbit',
+  title: 'Parallax',
   description: 'Premium client project review',
+  icons: {
+    icon: '/parallax-icon.png',
+    apple: '/parallax-icon.png',
+  },
 };
 
 export const viewport = {

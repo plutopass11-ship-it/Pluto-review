@@ -6,7 +6,7 @@ import EmptyState from './shared/EmptyState';
 import './DashboardClient.css';
 
 const DASHBOARD_PIN = '9801';
-const PIN_STORAGE_KEY = 'orbit_dashboard_auth';
+const PIN_STORAGE_KEY = 'parallax_dashboard_auth';
 
 export default function DashboardClient({ projects, serverError }) {
     const [pinVerified, setPinVerified] = useState(false);
