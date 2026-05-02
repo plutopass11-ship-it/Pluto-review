@@ -147,15 +147,17 @@ export async function getProjectsWithStats() {
   return results;
 }
 
-export async function getPlaylistData(projectId) {
+export async function getClientReviewTasks(projectId) {
   const reviewTaskType = await getClientReviewTaskType();
   const taskStatuses = await fetchKitsuData('/data/task-status').catch(() => []);
   const clientTasks = await fetchKitsuData(`/data/tasks?project_id=${projectId}&task_type_id=${reviewTaskType.id}`).catch(() => []);
   
   if (clientTasks.length === 0) return [];
 
-  const shotsRes = await fetchKitsuData(`/data/shots?project_id=${projectId}`).catch(() => []);
-  const allPreviews = await fetchKitsuData(`/data/preview-files?project_id=${projectId}`).catch(() => []);
+  const [shotsRes, allPreviews] = await Promise.all([
+    fetchKitsuData(`/data/shots?project_id=${projectId}`).catch(() => []),
+    fetchKitsuData(`/data/preview-files?project_id=${projectId}`).catch(() => [])
+  ]);
 
   const shotMap = {};
   shotsRes.forEach(s => {
@@ -170,7 +172,7 @@ export async function getPlaylistData(projectId) {
     if (!taskPreviewsMap[p.task_id]) taskPreviewsMap[p.task_id] = [];
     taskPreviewsMap[p.task_id].push(p);
   });
-  Object.values(taskPreviewsMap).forEach(arr => arr.sort((a, b) => b.revision - a.revision));
+  Object.values(taskPreviewsMap).forEach(arr => arr.sort((a, b) => (b.revision || 0) - (a.revision || 0)));
 
   return clientTasks
     .map(task => {
@@ -179,7 +181,7 @@ export async function getPlaylistData(projectId) {
       const previews = taskPreviewsMap[task.id] || [];
       const latest = getBestPreviewForPlayback(previews);
       return {
-        id: task.id,
+        ...task,
         entity_name: shotData.name,
         sequence_name: shotData.sequenceName,
         task_status_name: statusInfo.name || 'Unknown',
@@ -188,12 +190,15 @@ export async function getPlaylistData(projectId) {
         video_url: latest ? `/api/proxy-video?id=${latest.id}&ext=${latest.extension || 'mp4'}` : null,
         preview_id: latest?.id || null,
         version_label: latest ? `v${String(latest.revision).padStart(2, '0')}` : 'v01',
+        version_count: previews.length,
         project_id: task.project_id,
         preview_status: latest?.status || null,
       };
-    })
-    .filter(item => (item.task_status_short || '').toLowerCase() !== 'todo');
+    });
 }
+
+// Keep getPlaylistData for compatibility if used elsewhere, aliasing to getClientReviewTasks
+export const getPlaylistData = getClientReviewTasks;
 
 export async function getTaskData(taskId) {
   const task = await fetchKitsuData(`/data/tasks/${taskId}`).catch(() => null);
