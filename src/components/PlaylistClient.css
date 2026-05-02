@@ -1369,7 +1369,7 @@
     .playlist-header-left {
         width: auto;
         flex: 1;
-        flex-wrap: nowrap;
+        flex-wrap: wrap;
         gap: 6px;
         min-width: 0;
     }
@@ -1398,17 +1398,22 @@
     /* Compact sequence picker */
     .seq-picker-wrapper {
         width: auto;
+        max-width: 100%;
+        min-width: 0;
     }
 
     .seq-picker-btn {
         width: auto;
+        max-width: 100%;
+        min-width: 0;
         padding: 5px 10px;
         min-height: 32px;
         font-size: 0.8rem;
+        overflow: hidden;
     }
 
     .seq-picker-label {
-        max-width: 100px;
+        max-width: 80px;
     }
 
     .seq-picker-dropdown {

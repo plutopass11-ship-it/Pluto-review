@@ -122,7 +122,7 @@ export default function DashboardClient({ projects, serverError }) {
                     </div>
                     <div className="stat-info">
                         <h3>Approved</h3>
-                        <p>Shots approved by you</p>
+                        <p>Shots approved by client</p>
                     </div>
                 </div>
             </section>
