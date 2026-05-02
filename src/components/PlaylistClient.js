@@ -51,6 +51,7 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
     const [isMuted, setIsMuted] = useState(false);
     const [showSeqPicker, setShowSeqPicker] = useState(false);
     const [isFullscreen, setIsFullscreen] = useState(false);
+    const [isPhone, setIsPhone] = useState(false);
 
     // Per-shot status tracking
     const [shotStatuses, setShotStatuses] = useState({});
@@ -215,11 +216,15 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
         loadComments();
     }, [currentShot?.id]);
 
-    // Scroll filmstrip to active card
+    // Scroll filmstrip to active card (manual scroll to avoid page scroll on mobile)
     useEffect(() => {
         if (filmstripRef.current) {
             const activeCard = filmstripRef.current.querySelector('.filmstrip-card.active');
-            if (activeCard) activeCard.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+            if (activeCard) {
+                const container = filmstripRef.current;
+                const scrollLeft = activeCard.offsetLeft - container.clientWidth / 2 + activeCard.clientWidth / 2;
+                container.scrollTo({ left: Math.max(0, scrollLeft), behavior: 'smooth' });
+            }
         }
     }, [currentIndex]);
 
@@ -551,10 +556,36 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
         }
     };
 
+    // ── Phone annotation flow (fullscreen-only) ──
+    const handlePhoneAnnotate = () => {
+        const area = videoAreaRef.current;
+        if (!area) return;
+        if (!document.fullscreenElement) {
+            area.requestFullscreen?.().catch(() => {});
+        }
+        setAnnotationMode(true);
+    };
+
+    const handlePhoneDone = () => {
+        if (annotationMode) persistCurrentAnnotation();
+        setAnnotationMode(false);
+        if (document.fullscreenElement) {
+            document.exitFullscreen?.().catch(() => {});
+        }
+    };
+
     useEffect(() => {
         const handler = () => setIsFullscreen(!!document.fullscreenElement);
         document.addEventListener('fullscreenchange', handler);
         return () => document.removeEventListener('fullscreenchange', handler);
+    }, []);
+
+    // Detect phone / small screen
+    useEffect(() => {
+        const check = () => setIsPhone(window.innerWidth <= 768);
+        check();
+        window.addEventListener('resize', check);
+        return () => window.removeEventListener('resize', check);
     }, []);
 
     // Effect to handle video loading when shot changes
@@ -787,18 +818,20 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
                     </span>
                 </div>
                 <div className="playlist-header-right">
-                    {/* Annotation toggle — visible, labeled */}
-                    <button
-                        className={`pl-annotate-btn ${annotationMode ? 'active' : ''}`}
-                        onClick={() => {
-                            if (annotationMode) persistCurrentAnnotation();
-                            setAnnotationMode(!annotationMode);
-                        }}
-                        title="Draw annotations on frame"
-                    >
-                        <PenTool size={16} />
-                        <span>Annotate</span>
-                    </button>
+                    {/* Annotation toggle — hidden on phone (use floating FAB instead) */}
+                    {!isPhone && (
+                        <button
+                            className={`pl-annotate-btn ${annotationMode ? 'active' : ''}`}
+                            onClick={() => {
+                                if (annotationMode) persistCurrentAnnotation();
+                                setAnnotationMode(!annotationMode);
+                            }}
+                            title="Draw annotations on frame"
+                        >
+                            <PenTool size={16} />
+                            <span>Annotate</span>
+                        </button>
+                    )}
                     {/* Version compare */}
                     <button
                         className={`pl-version-btn ${showVersions ? 'active' : ''}`}
@@ -913,6 +946,25 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
                         )}
                     </div>
 
+                    {/* Phone floating annotate / done buttons */}
+                    {isPhone && hasVisibleVideo && !annotationMode && (
+                        <>
+                            <button className="pl-fab-annotate" onClick={handlePhoneAnnotate} title="Annotate in fullscreen">
+                                <PenTool size={20} />
+                                <span>Annotate</span>
+                            </button>
+                            <div className="pl-annotation-disclaimer">
+                                Tap Annotate to draw in fullscreen, or exit to comment
+                            </div>
+                        </>
+                    )}
+                    {isPhone && annotationMode && (
+                        <button className="pl-fab-done" onClick={handlePhoneDone} title="Finish and comment">
+                            <CheckCircle size={20} />
+                            <span>Done</span>
+                        </button>
+                    )}
+
                     {videoNotice && (
                         <div className="playlist-video-notice">
                             {videoNotice}
@@ -942,6 +994,11 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
                             <button className="anno-btn" onClick={clearCanvas} title="Clear all">
                                 <X size={16} />
                             </button>
+                            {isPhone && (
+                                <button className="anno-btn anno-done-btn" onClick={handlePhoneDone} title="Finish and comment">
+                                    <CheckCircle size={16} />
+                                </button>
+                            )}
                             {hasAnnotation && (
                                 <span className="anno-saved-hint">Current frame will be saved when you move frames or send feedback</span>
                             )}

@@ -1,12 +1,25 @@
 "use client";
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import EmptyState from './shared/EmptyState';
 import './DashboardClient.css';
 
+const DASHBOARD_PIN = '9801';
+const PIN_STORAGE_KEY = 'pluto_dashboard_auth';
+
 export default function DashboardClient({ projects, serverError }) {
+    const [pinVerified, setPinVerified] = useState(false);
+    const [pinInput, setPinInput] = useState('');
+    const [pinError, setPinError] = useState(false);
+
     useEffect(() => {
+        const verified = localStorage.getItem(PIN_STORAGE_KEY) === 'true';
+        setPinVerified(verified);
+    }, []);
+
+    useEffect(() => {
+        if (!pinVerified) return;
         // Troubleshooting: Check Kitsu connection status from the browser
         console.log('--- Client Review Debugging ---');
         console.log('Project data from server:', projects);
@@ -22,7 +35,43 @@ export default function DashboardClient({ projects, serverError }) {
                 }
             })
             .catch(err => console.error('❌ Debug API Error:', err));
-    }, [projects, serverError]);
+    }, [projects, serverError, pinVerified]);
+
+    const handlePinSubmit = (e) => {
+        e.preventDefault();
+        if (pinInput === DASHBOARD_PIN) {
+            localStorage.setItem(PIN_STORAGE_KEY, 'true');
+            setPinVerified(true);
+            setPinError(false);
+        } else {
+            setPinError(true);
+        }
+    };
+
+    if (!pinVerified) {
+        return (
+            <div className="pin-overlay">
+                <div className="pin-modal glass-panel">
+                    <h2>Restricted Access</h2>
+                    <p>Enter the 4-digit PIN to access the dashboard.</p>
+                    <form onSubmit={handlePinSubmit} className="pin-form">
+                        <input
+                            type="password"
+                            inputMode="numeric"
+                            maxLength={4}
+                            value={pinInput}
+                            onChange={(e) => setPinInput(e.target.value)}
+                            placeholder="••••"
+                            className={`pin-input ${pinError ? 'pin-error' : ''}`}
+                            autoFocus
+                        />
+                        {pinError && <span className="pin-error-text">Incorrect PIN</span>}
+                        <button type="submit" className="pin-submit-btn">Unlock</button>
+                    </form>
+                </div>
+            </div>
+        );
+    }
 
     // Compute aggregate stats from real data
     const totalShots = projects.reduce((sum, p) => sum + (p.total_shots || 0), 0);
