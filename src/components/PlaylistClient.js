@@ -869,7 +869,7 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
                         title={hideDone ? 'Show done shots' : 'Hide done shots'}
                     >
                         {hideDone ? <EyeOff size={14} /> : <Eye size={14} />}
-                        <span>{hideDone ? 'Done hidden' : 'Done visible'}</span>
+                        <span className="pl-hide-done-label">{hideDone ? 'Hide Done' : 'Show Done'}</span>
                     </button>
                     {/* Annotation toggle — hidden on phone (use floating FAB instead) */}
                     {!isPhone && (
