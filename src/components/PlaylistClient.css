@@ -1333,16 +1333,51 @@
         overflow: visible;
     }
 
-    .playlist-header {
-        flex-direction: column;
-        align-items: stretch;
-        padding: 12px;
+    /* Flatten main so video, filmstrip and sidebar can be reordered */
+    .playlist-main {
+        display: contents;
     }
 
-    .playlist-header-left,
-    .playlist-header-right {
+    /* Reorder: video first, filmstrip second, sidebar last */
+    .playlist-video-area {
+        order: 1;
+        min-height: 0;
+    }
+
+    .playlist-filmstrip {
+        order: 2;
+        position: static;
+    }
+
+    .playlist-sidebar {
+        order: 3;
         width: 100%;
+        border-left: none;
+        border-top: 1px solid rgba(255, 255, 255, 0.06);
+        max-height: none;
+    }
+
+    /* Compact header */
+    .playlist-header {
+        flex-direction: row;
+        align-items: center;
         flex-wrap: wrap;
+        padding: 8px 12px;
+        gap: 8px;
+    }
+
+    .playlist-header-left {
+        width: auto;
+        flex: 1;
+        flex-wrap: nowrap;
+        gap: 6px;
+        min-width: 0;
+    }
+
+    .playlist-header-right {
+        width: auto;
+        flex-wrap: nowrap;
+        gap: 6px;
     }
 
     .playlist-project-name,
@@ -1350,17 +1385,31 @@
         display: none;
     }
 
-    .seq-picker-wrapper,
-    .seq-picker-btn,
-    .playlist-download-btn,
-    .pl-annotate-btn,
-    .pl-version-btn {
-        width: 100%;
+    .playlist-shot-name {
+        font-size: 0.9rem;
+        min-width: 0;
+    }
+
+    .playlist-status-badge {
+        font-size: 0.65rem;
+        padding: 2px 8px;
+        white-space: nowrap;
+    }
+
+    /* Compact sequence picker */
+    .seq-picker-wrapper {
+        width: auto;
+    }
+
+    .seq-picker-btn {
+        width: auto;
+        padding: 5px 10px;
+        min-height: 32px;
+        font-size: 0.8rem;
     }
 
     .seq-picker-label {
-        max-width: none;
-        flex: 1;
+        max-width: 100px;
     }
 
     .seq-picker-dropdown {
@@ -1369,47 +1418,80 @@
         min-width: 0;
     }
 
-    .playlist-main {
-        flex-direction: column;
-        overflow: visible;
+    /* Compact action buttons */
+    .playlist-download-btn,
+    .pl-version-btn {
+        width: auto;
+        padding: 6px 10px;
+        min-height: 32px;
+        font-size: 0.75rem;
+        gap: 4px;
     }
 
-    .playlist-video-area {
-        min-height: 0;
+    .pl-annotate-btn {
+        width: auto;
     }
 
+    /* Video: true 16/9 aspect ratio */
     .playlist-video-wrapper {
-        min-height: 46dvh;
-        max-height: 52dvh;
+        aspect-ratio: 16 / 9;
+        min-height: auto;
+        max-height: none;
     }
 
+    /* Compact controls — single wrapping row */
     .playlist-controls {
-        padding: 10px 12px 12px;
-    }
-
-    .playlist-video-notice {
-        margin: 0 12px 12px;
+        padding: 8px 12px;
     }
 
     .playlist-control-bar {
-        flex-direction: column;
-        align-items: stretch;
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
     }
 
     .playlist-controls-left,
     .playlist-controls-right {
         justify-content: center;
+        gap: 4px;
+        flex-wrap: wrap;
     }
 
-    .playlist-sidebar {
-        width: 100%;
-        border-left: none;
-        border-top: 1px solid rgba(255, 255, 255, 0.06);
-        max-height: none;
+    /* Smaller control buttons */
+    .pl-ctrl-btn {
+        width: 32px;
+        height: 32px;
+    }
+
+    .pl-play-btn {
+        width: 40px;
+        height: 40px;
+    }
+
+    .pl-shot-counter,
+    .pl-frame-counter,
+    .pl-timecode {
+        font-size: 0.75rem;
+    }
+
+    .pl-shot-counter {
+        margin-left: 4px;
+    }
+
+    .pl-frame-counter {
+        padding: 2px 6px;
+    }
+
+    /* Sidebar compact */
+    .playlist-sidebar-header,
+    .playlist-decision,
+    .playlist-feedback {
+        padding: 12px;
     }
 
     .playlist-feedback {
-        min-height: 280px;
+        min-height: auto;
     }
 
     .pl-comment-input {
@@ -1418,26 +1500,45 @@
 
     .pl-send-btn {
         width: 100%;
-        height: 44px;
+        height: 40px;
         align-self: stretch;
     }
 
+    /* Filmstrip tweaks */
     .filmstrip-card {
-        flex: 0 0 108px;
+        flex: 0 0 96px;
     }
 
+    /* Annotation toolbar compact */
     .annotation-toolbar {
-        bottom: 12px;
-        padding: 10px 12px;
-        gap: 6px;
+        bottom: 8px;
+        padding: 8px 10px;
+        gap: 4px;
+    }
+
+    .anno-btn {
+        width: 30px;
+        height: 30px;
+    }
+
+    .anno-color {
+        width: 18px;
+        height: 18px;
     }
 
     .anno-saved-hint {
         width: 100%;
         margin-left: 0;
         text-align: center;
+        font-size: 0.7rem;
     }
 
+    /* Version bar compact */
+    .version-bar {
+        padding: 6px 12px;
+    }
+
+    /* Client theater mode overrides */
     .client-theater-mode .playlist-sidebar,
     .client-theater-mode .playlist-filmstrip,
     .client-theater-mode .playlist-controls {
@@ -1462,22 +1563,27 @@
     }
 
     .playlist-shot-name {
-        font-size: 0.95rem;
+        font-size: 0.85rem;
     }
 
     .playlist-status-badge {
-        width: 100%;
-        text-align: center;
+        font-size: 0.6rem;
+        padding: 1px 6px;
     }
 
     .pl-shot-counter,
     .pl-timecode {
-        width: 100%;
-        text-align: center;
+        font-size: 0.7rem;
         margin-left: 0;
     }
 
     .filmstrip-card {
-        flex-basis: 96px;
+        flex-basis: 88px;
+    }
+
+    .playlist-download-btn,
+    .pl-version-btn {
+        padding: 5px 8px;
+        font-size: 0.7rem;
     }
 }
