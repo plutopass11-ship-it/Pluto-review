@@ -895,6 +895,13 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
                         </div>
                     )}
                     <div className="playlist-video-wrapper">
+                        {/* Mobile floating status badge */}
+                        <span
+                            className="pl-video-status-badge"
+                            style={{ borderColor: getStatusColor(effectiveStatus.short), color: getStatusColor(effectiveStatus.short) }}
+                        >
+                            {effectiveStatus.name}
+                        </span>
                         {hasVisibleVideo ? (
                             <>
                                 <video

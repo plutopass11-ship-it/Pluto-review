@@ -611,59 +611,59 @@
     color: #34d399;
 }
 
-/* Phone floating annotate / done buttons */
+/* Phone floating annotate / done buttons — compact circular */
 .pl-fab-annotate,
 .pl-fab-done {
     position: absolute;
-    bottom: 140px;
-    right: 20px;
+    bottom: 12px;
+    right: 12px;
     z-index: 150;
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 12px 18px;
-    border-radius: 40px;
-    font-size: 0.9rem;
-    font-weight: 600;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    font-size: 0;
     border: none;
     cursor: pointer;
     transition: transform 0.15s, box-shadow 0.15s;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
     backdrop-filter: blur(12px);
 }
 
 .pl-fab-annotate {
-    background: linear-gradient(135deg, rgba(239, 68, 68, 0.9), rgba(239, 68, 68, 0.7));
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.85), rgba(239, 68, 68, 0.6));
     color: #fff;
 }
 
 .pl-fab-annotate:hover {
-    transform: scale(1.05);
-    box-shadow: 0 6px 24px rgba(239, 68, 68, 0.4);
+    transform: scale(1.08);
+    box-shadow: 0 4px 16px rgba(239, 68, 68, 0.35);
 }
 
 .pl-fab-done {
-    background: linear-gradient(135deg, rgba(16, 185, 129, 0.9), rgba(16, 185, 129, 0.7));
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.85), rgba(16, 185, 129, 0.6));
     color: #fff;
 }
 
 .pl-fab-done:hover {
-    transform: scale(1.05);
-    box-shadow: 0 6px 24px rgba(16, 185, 129, 0.4);
+    transform: scale(1.08);
+    box-shadow: 0 4px 16px rgba(16, 185, 129, 0.35);
 }
 
 .pl-annotation-disclaimer {
     position: absolute;
-    bottom: 100px;
+    bottom: 64px;
     left: 50%;
     transform: translateX(-50%);
     z-index: 150;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     font-weight: 500;
     color: #94a3b8;
-    background: rgba(0, 0, 0, 0.6);
+    background: rgba(0, 0, 0, 0.5);
     backdrop-filter: blur(8px);
-    padding: 6px 14px;
+    padding: 4px 12px;
     border-radius: 20px;
     pointer-events: none;
     white-space: nowrap;
@@ -1390,10 +1390,9 @@
         min-width: 0;
     }
 
-    .playlist-status-badge {
-        font-size: 0.65rem;
-        padding: 2px 8px;
-        white-space: nowrap;
+    /* Move status badge out of header on mobile to avoid overlap */
+    .playlist-header .playlist-status-badge {
+        display: none;
     }
 
     /* Compact sequence picker */
@@ -1432,14 +1431,31 @@
         width: auto;
     }
 
-    /* Video: true 16/9 aspect ratio */
+    /* Floating status badge over video */
     .playlist-video-wrapper {
         aspect-ratio: 16 / 9;
         min-height: auto;
         max-height: none;
     }
 
-    /* Compact controls — single wrapping row */
+    .pl-video-status-badge {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        z-index: 20;
+        font-size: 0.65rem;
+        font-weight: 600;
+        padding: 2px 8px;
+        border-radius: 20px;
+        border: 1px solid;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        background: rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(4px);
+        pointer-events: none;
+    }
+
+    /* Compact controls — single centered wrapping row */
     .playlist-controls {
         padding: 8px 12px;
     }
@@ -1448,6 +1464,7 @@
         flex-direction: row;
         flex-wrap: wrap;
         align-items: center;
+        justify-content: center;
         gap: 6px;
     }
 
@@ -1456,6 +1473,7 @@
         justify-content: center;
         gap: 4px;
         flex-wrap: wrap;
+        display: inline-flex;
     }
 
     /* Smaller control buttons */
