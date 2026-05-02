@@ -470,10 +470,58 @@
     color: #fff;
 }
 
+/* CSS pseudo-fullscreen for iPhone (native fullscreen API not available on divs) */
+.playlist-video-area.css-fullscreen {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    z-index: 9999 !important;
+    background: #000 !important;
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+.playlist-video-area.css-fullscreen .playlist-video-wrapper {
+    flex: 1;
+    min-height: 0;
+}
+
+.playlist-video-area.css-fullscreen .playlist-video {
+    object-fit: contain;
+    width: 100%;
+    height: 100%;
+}
+
+.playlist-video-area.css-fullscreen .annotation-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.playlist-video-area.css-fullscreen .playlist-play-overlay {
+    position: absolute;
+    inset: 0;
+}
+
+.playlist-video-area.css-fullscreen .fs-top-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(8px);
+    z-index: 200;
+    flex-shrink: 0;
+}
+
 /* Controls visible in fullscreen */
 .playlist-video-area:fullscreen .playlist-controls,
 .playlist-video-area:-webkit-full-screen .playlist-controls,
-.playlist-video-area:-moz-full-screen .playlist-controls {
+.playlist-video-area:-moz-full-screen .playlist-controls,
+.playlist-video-area.css-fullscreen .playlist-controls {
     flex-shrink: 0;
     padding: 12px 20px 16px;
     background: rgba(0, 0, 0, 0.6);
@@ -482,7 +530,8 @@
 
 .playlist-video-area:fullscreen .playlist-video-notice,
 .playlist-video-area:-webkit-full-screen .playlist-video-notice,
-.playlist-video-area:-moz-full-screen .playlist-video-notice {
+.playlist-video-area:-moz-full-screen .playlist-video-notice,
+.playlist-video-area.css-fullscreen .playlist-video-notice {
     margin: 0 20px 12px;
 }
 

@@ -77,7 +77,9 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
     const [isMuted, setIsMuted] = useState(false);
     const [showSeqPicker, setShowSeqPicker] = useState(false);
     const [isFullscreen, setIsFullscreen] = useState(false);
+    const [isCssFullscreen, setIsCssFullscreen] = useState(false);
     const [isPhone, setIsPhone] = useState(false);
+    const [isIos, setIsIos] = useState(false);
     const [hideDone, setHideDone] = useState(true);
 
     // Per-shot status tracking
@@ -593,13 +595,22 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
     };
 
     // ── Fullscreen ──
+    // iPhone doesn't support requestFullscreen on div elements, so we use a CSS fallback
+    const supportsNativeFullscreen = typeof document !== 'undefined' &&
+        (document.fullscreenEnabled || document.webkitFullscreenEnabled);
+
     const toggleFullscreen = () => {
         const area = videoAreaRef.current;
         if (!area) return;
-        if (!document.fullscreenElement) {
-            area.requestFullscreen?.().catch(() => {});
+        if (isIos || !supportsNativeFullscreen) {
+            // CSS pseudo-fullscreen for iPhone
+            setIsCssFullscreen(prev => !prev);
         } else {
-            document.exitFullscreen?.().catch(() => {});
+            if (!document.fullscreenElement) {
+                area.requestFullscreen?.().catch(() => {});
+            } else {
+                document.exitFullscreen?.().catch(() => {});
+            }
         }
     };
 
@@ -607,7 +618,9 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
     const handlePhoneAnnotate = () => {
         const area = videoAreaRef.current;
         if (!area) return;
-        if (!document.fullscreenElement) {
+        if (isIos || !supportsNativeFullscreen) {
+            setIsCssFullscreen(true);
+        } else if (!document.fullscreenElement) {
             area.requestFullscreen?.().catch(() => {});
         }
         setAnnotationMode(true);
@@ -616,7 +629,9 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
     const handlePhoneDone = () => {
         if (annotationMode) persistCurrentAnnotation();
         setAnnotationMode(false);
-        if (document.fullscreenElement) {
+        if (isIos || !supportsNativeFullscreen) {
+            setIsCssFullscreen(false);
+        } else if (document.fullscreenElement) {
             document.exitFullscreen?.().catch(() => {});
         }
     };
@@ -624,14 +639,22 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
     useEffect(() => {
         const handler = () => setIsFullscreen(!!document.fullscreenElement);
         document.addEventListener('fullscreenchange', handler);
-        return () => document.removeEventListener('fullscreenchange', handler);
+        document.addEventListener('webkitfullscreenchange', handler);
+        return () => {
+            document.removeEventListener('fullscreenchange', handler);
+            document.removeEventListener('webkitfullscreenchange', handler);
+        };
     }, []);
 
-    // Detect phone / small screen
+    // Detect phone / small screen + iOS
     useEffect(() => {
         const check = () => setIsPhone(window.innerWidth <= 768);
         check();
         window.addEventListener('resize', check);
+        // Detect iOS (iPhone or iPad)
+        const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+            (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        setIsIos(isIOSDevice);
         return () => window.removeEventListener('resize', check);
     }, []);
 
@@ -667,6 +690,7 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
 
     const jumpToShot = (index) => {
         if (index < 0 || index >= seqShots.length) return;
+        const nextShot = seqShots[index];
         setCurrentIndex(index);
         setCurrentTime(0);
         setDuration(0);
@@ -675,6 +699,18 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
         setShowVersions(false);
         setQueuedAnnotations([]);
         clearCanvas();
+
+        // iOS Safari requires play() to be called directly within a user gesture handler.
+        // State updates + useEffect lose the gesture context, so we directly manipulate the video here.
+        if (isIos && videoRef.current && nextShot?.video_url) {
+            videoRef.current.src = nextShot.video_url;
+            videoRef.current.load();
+            const playPromise = videoRef.current.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(() => setIsPlaying(false));
+            }
+            setCurrentVideoUrl(nextShot.video_url);
+        }
     };
 
     // Find next visible shot index (skipping hidden Done shots)
@@ -958,9 +994,9 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
             {/* Main content */}
             <div className="playlist-main">
                 {/* Video area */}
-                <div className="playlist-video-area" ref={videoAreaRef}>
+                <div className={`playlist-video-area ${isCssFullscreen ? 'css-fullscreen' : ''}`} ref={videoAreaRef}>
                     {/* Fullscreen top bar */}
-                    {isFullscreen && (
+                    {(isFullscreen || isCssFullscreen) && (
                         <div className="fs-top-bar">
                             <span className="fs-shot-name">{currentShot?.entity_name || 'Shot'}</span>
                             <button className="fs-close-btn" onClick={toggleFullscreen} title="Exit Fullscreen (Esc)">
@@ -984,6 +1020,8 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
                                     className="playlist-video"
                                     preload="auto"
                                     playsInline
+                                    webkit-playsinline="true"
+                                    x5-playsinline="true"
                                     onTimeUpdate={handleTimeUpdate}
                                     onLoadedMetadata={handleLoadedMetadata}
                                     onEnded={handleVideoEnded}
