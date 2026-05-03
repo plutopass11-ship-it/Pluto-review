@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "archiver": "^7.0.1",
     "lucide-react": "^0.446.0",
     "next": "14.2.14",
     "react": "^18",

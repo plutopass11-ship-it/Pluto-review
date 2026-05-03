@@ -95,6 +95,7 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
     const [hasPlayedOnce, setHasPlayedOnce] = useState(false);
     const [isDraggingTimeline, setIsDraggingTimeline] = useState(false);
     const [showDownloadMenu, setShowDownloadMenu] = useState(false);
+    const [isZipping, setIsZipping] = useState(false);
 
     // Annotation state
     const [annotationMode, setAnnotationMode] = useState(false);
@@ -895,24 +896,52 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
 
     const effectiveStatus = currentShot ? getEffectiveStatus(currentShot) : { name: '', short: '' };
 
-    const downloadShots = (shotsToDownload) => {
-        if (!shotsToDownload || shotsToDownload.length === 0) return;
-        shotsToDownload.forEach((shot, idx) => {
-            if (shot.preview_id) {
-                setTimeout(() => {
-                    const ext = shot.video_url?.match(/ext=([a-zA-Z0-9]+)/)?.[1] || 'mp4';
-                    const a = document.createElement('a');
-                    const downloadName = `${activeSequence.name || 'seq'}-${shot.entity_name}`;
-                    a.href = `/api/download-watermarked?id=${shot.preview_id}&name=${encodeURIComponent(downloadName)}&user=${encodeURIComponent(currentUser)}&ext=${ext}`;
-                    a.download = '';
-                    a.click();
-                }, idx * 500); // Stagger downloads
-            }
-        });
-        setShowDownloadMenu(false);
+    const downloadSingleShot = (shot) => {
+        if (!shot.preview_id) return;
+        const ext = shot.video_url?.match(/ext=([a-zA-Z0-9]+)/)?.[1] || 'mp4';
+        const a = document.createElement('a');
+        const downloadName = `${activeSequence.name || 'seq'}-${shot.entity_name}`;
+        a.href = `/api/download-watermarked?id=${shot.preview_id}&name=${encodeURIComponent(downloadName)}&user=${encodeURIComponent(currentUser)}&ext=${ext}`;
+        a.download = '';
+        a.click();
     };
 
-    const downloadSequence = () => downloadShots(seqShots);
+    const downloadSequenceZip = async (shotsToZip) => {
+        if (!shotsToZip || shotsToZip.length === 0) return;
+        setIsZipping(true);
+        setShowDownloadMenu(false);
+        
+        try {
+            const res = await fetch('/api/download-sequence-zip', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    projectId,
+                    sequenceName: activeSequence.name || 'seq',
+                    shots: shotsToZip,
+                }),
+            });
+            
+            if (!res.ok) {
+                const err = await res.json();
+                toast.error(err.error || 'Failed to create ZIP');
+                setIsZipping(false);
+                return;
+            }
+            
+            const data = await res.json();
+            
+            // Trigger the download
+            window.location.href = data.downloadUrl;
+            toast.success(`Downloading ${data.shotCount} shots as ZIP`);
+        } catch (err) {
+            toast.error('Failed to create ZIP');
+        } finally {
+            setIsZipping(false);
+        }
+    };
+
+    const downloadSequence = () => downloadSequenceZip(seqShots);
 
     const downloadApprovedShots = () => {
         const approved = seqShots.filter(s => isShotDone(s));
@@ -920,7 +949,7 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
             toast('No approved shots in this sequence');
             return;
         }
-        downloadShots(approved);
+        downloadSequenceZip(approved);
     };
 
     return (
@@ -1000,18 +1029,21 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
                     <a
                         href={`/api/download-watermarked?id=${currentShot?.preview_id || ''}&name=${encodeURIComponent(`${activeSequence.name || 'seq'}-${currentShot?.entity_name || 'shot'}`)}&user=${encodeURIComponent(currentUser)}&ext=${currentShot?.video_url?.match(/ext=([a-zA-Z0-9]+)/)?.[1] || 'mp4'}`}
                         download
-                        className="playlist-download-btn"
+                        className={`playlist-download-btn ${isZipping ? 'disabled' : ''}`}
                         title="Download Current Shot"
+                        onClick={(e) => isZipping && e.preventDefault()}
                     >
                         <Download size={16} /> Shot
                     </a>
                     <div className="playlist-download-dropdown-wrapper">
                         <button
-                            onClick={() => setShowDownloadMenu(!showDownloadMenu)}
-                            className="playlist-download-btn seq-dl-btn"
-                            title="Download options"
+                            onClick={() => !isZipping && setShowDownloadMenu(!showDownloadMenu)}
+                            className={`playlist-download-btn seq-dl-btn ${isZipping ? 'disabled' : ''}`}
+                            title={isZipping ? 'Zipping in progress...' : 'Download options'}
+                            disabled={isZipping}
                         >
-                            <Download size={16} /> <ChevronDown size={12} />
+                            {isZipping ? <Loader2 size={14} className="spin" /> : <Download size={16} />}
+                            <ChevronDown size={12} />
                         </button>
                         {showDownloadMenu && (
                             <div className="playlist-download-dropdown">
@@ -1026,6 +1058,14 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
                     </div>
                 </div>
             </header>
+
+            {/* Zipping disclaimer */}
+            {isZipping && (
+                <div className="zipping-banner">
+                    <Loader2 size={14} className="spin" />
+                    <span>Zipping sequence, please wait...</span>
+                </div>
+            )}
 
             {/* Version bar */}
             {showVersions && versions.length > 0 && (

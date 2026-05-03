@@ -24,6 +24,31 @@
     z-index: 20;
 }
 
+.zipping-banner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 6px 16px;
+    background: linear-gradient(90deg, #6366f1, #8b5cf6);
+    color: white;
+    font-size: 0.8rem;
+    font-weight: 500;
+    flex-shrink: 0;
+    animation: slideDown 0.2s ease;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
 .playlist-header-left,
 .playlist-header-right {
     display: flex;
@@ -124,6 +149,13 @@
 .playlist-download-btn:hover {
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+}
+
+.playlist-download-btn.disabled,
+.playlist-download-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
 }
 
 .playlist-download-dropdown-wrapper {
