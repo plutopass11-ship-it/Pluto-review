@@ -286,6 +286,9 @@
     gap: 4px;
     z-index: 100;
     animation: fadeIn 0.15s ease;
+    background: #0f1117 !important; /* Override glass-panel transparency */
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
 }
 
 .filter-option {
@@ -434,6 +437,9 @@
 
 .playlist-dropdown {
     min-width: 200px;
+    background: #0f1117 !important; /* Override glass-panel transparency */
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
 }
 
 .playlist-option {
@@ -580,9 +586,33 @@
         padding: 14px 16px;
     }
 
+    /* Smaller shot cards on phone */
+    .masonry-grid {
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: 10px;
+    }
+
+    .shot-card {
+        border-radius: 8px;
+    }
+
+    .thumbnail-container {
+        border-radius: 8px 8px 0 0;
+    }
+
     .shot-details {
         align-items: flex-start;
         gap: 10px;
+        padding: 10px 12px;
+    }
+
+    .shot-info h3 {
+        font-size: 0.85rem;
+    }
+
+    .status-badge {
+        font-size: 0.65rem;
+        padding: 2px 6px;
     }
 
     .comments-indicator {

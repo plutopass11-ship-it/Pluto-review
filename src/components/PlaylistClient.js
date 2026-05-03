@@ -91,16 +91,10 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
     const [commentSubmitting, setCommentSubmitting] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [taskStatuses, setTaskStatuses] = useState([]);
-    const [openedShots, setOpenedShots] = useState(() => {
-        if (typeof window !== 'undefined') {
-            try {
-                return JSON.parse(localStorage.getItem('opened_shots') || '[]');
-            } catch { return []; }
-        }
-        return [];
-    });
+    // openedShots tracking removed per user request — no NEW badges
     const [hasPlayedOnce, setHasPlayedOnce] = useState(false);
     const [isDraggingTimeline, setIsDraggingTimeline] = useState(false);
+    const [showDownloadMenu, setShowDownloadMenu] = useState(false);
 
     // Annotation state
     const [annotationMode, setAnnotationMode] = useState(false);
@@ -172,21 +166,6 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
     // Init
     useEffect(() => {
         fetch('/api/task-statuses').then(r => r.json()).then(data => { if (Array.isArray(data)) setTaskStatuses(data); }).catch(() => { });
-        fetch('/api/read-status')
-            .then(res => res.json())
-            .then(data => {
-                if (data && !data.error) {
-                    // Merge server data with localStorage so we don't lose shots opened on other devices
-                    const fromServer = Object.keys(data);
-                    const stored = JSON.parse(localStorage.getItem('opened_shots') || '[]');
-                    const merged = Array.from(new Set([...stored, ...fromServer]));
-                    setOpenedShots(merged);
-                    localStorage.setItem('opened_shots', JSON.stringify(merged));
-                }
-            })
-            .catch(() => {
-                // Already loaded from localStorage in useState initializer
-            });
 
         // Global mouseup to stop timeline drag even if cursor leaves the element
         const globalMouseUp = () => setIsDraggingTimeline(false);
@@ -224,19 +203,6 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
     }, [sequences, initialShotId]);
 
     // Mark current shot as opened
-    useEffect(() => {
-        if (currentShot && !openedShots.includes(currentShot.id)) {
-            const newOpened = [...openedShots, currentShot.id];
-            setOpenedShots(newOpened);
-            fetch('/api/read-status', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ shotId: currentShot.id })
-            }).catch(() => {});
-            localStorage.setItem('opened_shots', JSON.stringify(newOpened));
-        }
-    }, [currentShot?.id, openedShots]);
-
     // Load comments + versions on shot change
     useEffect(() => {
         if (!currentShot) return;
@@ -929,9 +895,9 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
 
     const effectiveStatus = currentShot ? getEffectiveStatus(currentShot) : { name: '', short: '' };
 
-    const downloadSequence = () => {
-        if (!seqShots || seqShots.length === 0) return;
-        seqShots.forEach((shot, idx) => {
+    const downloadShots = (shotsToDownload) => {
+        if (!shotsToDownload || shotsToDownload.length === 0) return;
+        shotsToDownload.forEach((shot, idx) => {
             if (shot.preview_id) {
                 setTimeout(() => {
                     const ext = shot.video_url?.match(/ext=([a-zA-Z0-9]+)/)?.[1] || 'mp4';
@@ -942,6 +908,18 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
                 }, idx * 500); // Stagger downloads
             }
         });
+        setShowDownloadMenu(false);
+    };
+
+    const downloadSequence = () => downloadShots(seqShots);
+
+    const downloadApprovedShots = () => {
+        const approved = seqShots.filter(s => isShotDone(s));
+        if (approved.length === 0) {
+            toast('No approved shots in this sequence');
+            return;
+        }
+        downloadShots(approved);
     };
 
     return (
@@ -1026,13 +1004,25 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
                     >
                         <Download size={16} /> Shot
                     </a>
-                    <button
-                        onClick={downloadSequence}
-                        className="playlist-download-btn seq-dl-btn"
-                        title="Download All Shots in Sequence"
-                    >
-                        <Download size={16} /> Seq
-                    </button>
+                    <div className="playlist-download-dropdown-wrapper">
+                        <button
+                            onClick={() => setShowDownloadMenu(!showDownloadMenu)}
+                            className="playlist-download-btn seq-dl-btn"
+                            title="Download options"
+                        >
+                            <Download size={16} /> <ChevronDown size={12} />
+                        </button>
+                        {showDownloadMenu && (
+                            <div className="playlist-download-dropdown">
+                                <button onClick={downloadSequence} className="dl-dropdown-item">
+                                    <Download size={14} /> Download Sequence
+                                </button>
+                                <button onClick={downloadApprovedShots} className="dl-dropdown-item">
+                                    <CheckCircle size={14} /> Download Approved
+                                </button>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </header>
 
@@ -1373,13 +1363,12 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
                     const status = getEffectiveStatus(shot);
                     const statusColor = getStatusColor(status.short);
                     const isActive = shot.id === currentShot?.id;
-                    const isUnopened = !openedShots.includes(shot.id);
                     const realIndex = seqShots.findIndex((s) => s.id === shot.id);
 
                     return (
                         <button
                             key={shot.id}
-                            className={`filmstrip-card ${isActive ? 'active' : ''} ${isUnopened ? 'unopened' : ''}`}
+                            className={`filmstrip-card ${isActive ? 'active' : ''}`}
                             onClick={() => jumpToShot(realIndex)}
                             style={{ '--status-color': statusColor }}
                         >
