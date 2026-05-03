@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getKitsuToken, getKitsuApiUrl } from '@/lib/kitsu';
+import { logDownload } from '@/lib/download-logger';
 import archiver from 'archiver';
 import { promises as fs } from 'fs';
 import { join } from 'path';
@@ -40,7 +41,7 @@ ensureTmpDir().then(() => cleanupOldFiles());
 export async function POST(request) {
     try {
         const body = await request.json();
-        const { projectId, sequenceName, shots } = body;
+        const { projectId, projectName, sequenceName, shots, type } = body;
         
         if (!projectId || !sequenceName || !shots || !Array.isArray(shots)) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -110,6 +111,19 @@ export async function POST(request) {
                 await fs.unlink(filePath);
             } catch { /* ignore if already deleted */ }
         }, 60 * 60 * 1000);
+
+        // Log the download request
+        const headers = Object.fromEntries(request.headers.entries());
+        logDownload({
+            ip: headers['x-forwarded-for']?.split(',')[0] || headers['x-real-ip'] || 'unknown',
+            userAgent: headers['user-agent'],
+            projectId,
+            projectName: projectName || 'Unknown Project',
+            sequenceName,
+            shotName: null,
+            type: type || 'sequence',
+            fileName: zipName,
+        }).catch(() => {});
 
         return NextResponse.json({ 
             downloadUrl: `/api/download-file?token=${token}&name=${encodeURIComponent(zipName)}`,
