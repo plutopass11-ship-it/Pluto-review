@@ -73,7 +73,7 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
     const [isPlaying, setIsPlaying] = useState(false);
     const [currentTime, setCurrentTime] = useState(0);
     const [duration, setDuration] = useState(0);
-    const [isLooping, setIsLooping] = useState(false);
+    const [isLooping, setIsLooping] = useState(true);
     const [isMuted, setIsMuted] = useState(false);
     const [showSeqPicker, setShowSeqPicker] = useState(false);
     const [isFullscreen, setIsFullscreen] = useState(false);

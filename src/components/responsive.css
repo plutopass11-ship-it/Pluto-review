@@ -49,10 +49,11 @@
     font-size: clamp(2rem, 8vw, 2.5rem);
   }
 
-  .stats-grid,
-  .masonry-grid {
+  .stats-grid {
     grid-template-columns: 1fr !important;
   }
+
+  /* masonry-grid handled in ProjectClient.css with smaller multi-column layout */
 
   .project-header,
   .header-actions,
