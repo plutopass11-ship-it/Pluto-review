@@ -952,6 +952,15 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
         downloadSequenceZip(approved);
     };
 
+    const downloadUnapprovedShots = () => {
+        const unapproved = seqShots.filter(s => !isShotDone(s));
+        if (unapproved.length === 0) {
+            toast('No unapproved shots in this sequence');
+            return;
+        }
+        downloadSequenceZip(unapproved);
+    };
+
     return (
         <div className="playlist-container">
             {/* Top bar */}
@@ -1048,10 +1057,13 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
                         {showDownloadMenu && (
                             <div className="playlist-download-dropdown">
                                 <button onClick={downloadSequence} className="dl-dropdown-item">
-                                    <Download size={14} /> Download Sequence
+                                    <Download size={14} /> Download whole Sequence
                                 </button>
                                 <button onClick={downloadApprovedShots} className="dl-dropdown-item">
                                     <CheckCircle size={14} /> Download Approved
+                                </button>
+                                <button onClick={downloadUnapprovedShots} className="dl-dropdown-item">
+                                    <X size={14} /> Download Unapproved
                                 </button>
                             </div>
                         )}
