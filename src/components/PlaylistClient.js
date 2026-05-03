@@ -902,7 +902,8 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
                 setTimeout(() => {
                     const ext = shot.video_url?.match(/ext=([a-zA-Z0-9]+)/)?.[1] || 'mp4';
                     const a = document.createElement('a');
-                    a.href = `/api/download-watermarked?id=${shot.preview_id}&name=${encodeURIComponent(shot.entity_name)}&user=${encodeURIComponent(currentUser)}&ext=${ext}`;
+                    const downloadName = `${activeSequence.name || 'seq'}-${shot.entity_name}`;
+                    a.href = `/api/download-watermarked?id=${shot.preview_id}&name=${encodeURIComponent(downloadName)}&user=${encodeURIComponent(currentUser)}&ext=${ext}`;
                     a.download = '';
                     a.click();
                 }, idx * 500); // Stagger downloads
@@ -997,7 +998,7 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
                         <span>Versions</span>
                     </button>
                     <a
-                        href={`/api/download-watermarked?id=${currentShot?.preview_id || ''}&name=${encodeURIComponent(currentShot?.entity_name || 'shot')}&user=${encodeURIComponent(currentUser)}&ext=${currentShot?.video_url?.match(/ext=([a-zA-Z0-9]+)/)?.[1] || 'mp4'}`}
+                        href={`/api/download-watermarked?id=${currentShot?.preview_id || ''}&name=${encodeURIComponent(`${activeSequence.name || 'seq'}-${currentShot?.entity_name || 'shot'}`)}&user=${encodeURIComponent(currentUser)}&ext=${currentShot?.video_url?.match(/ext=([a-zA-Z0-9]+)/)?.[1] || 'mp4'}`}
                         download
                         className="playlist-download-btn"
                         title="Download Current Shot"
