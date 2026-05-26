@@ -89,9 +89,14 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
     const [comments, setComments] = useState(initialComments);
     const [newComment, setNewComment] = useState('');
     const [commentSubmitting, setCommentSubmitting] = useState(false);
+    const [activeReplyCommentId, setActiveReplyCommentId] = useState(null);
+    const [replyText, setReplyText] = useState('');
+    const [replySubmitting, setReplySubmitting] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [taskStatuses, setTaskStatuses] = useState([]);
-    // openedShots tracking removed per user request — no NEW badges
+    const [clientUser, setClientUser] = useState(null);
+    const [readStatus, setReadStatus] = useState({});
+    const [approvalInfo, setApprovalInfo] = useState(null);
     const [hasPlayedOnce, setHasPlayedOnce] = useState(false);
     const [isDraggingTimeline, setIsDraggingTimeline] = useState(false);
     const [showDownloadMenu, setShowDownloadMenu] = useState(false);
@@ -168,6 +173,18 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
     useEffect(() => {
         fetch('/api/task-statuses').then(r => r.json()).then(data => { if (Array.isArray(data)) setTaskStatuses(data); }).catch(() => { });
 
+        // Load client user from sessionStorage
+        try {
+            const stored = sessionStorage.getItem('parallax_user');
+            if (stored) setClientUser(JSON.parse(stored));
+        } catch {}
+
+        // Fetch read status
+        fetch('/api/read-status')
+            .then(r => r.json())
+            .then(data => setReadStatus(data))
+            .catch(() => {});
+
         // Global mouseup to stop timeline drag even if cursor leaves the element
         const globalMouseUp = () => setIsDraggingTimeline(false);
         window.addEventListener('mouseup', globalMouseUp);
@@ -203,10 +220,24 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
         }
     }, [sequences, initialShotId]);
 
+    // Mark shot as read helper
+    const markAsRead = (shotId) => {
+        if (readStatus[shotId]) return;
+        setReadStatus(prev => ({ ...prev, [shotId]: true }));
+        fetch('/api/read-status', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ shotId })
+        }).catch(() => {});
+    };
+
     // Mark current shot as opened
     // Load comments + versions on shot change
     useEffect(() => {
         if (!currentShot) return;
+
+        // Mark as read
+        markAsRead(currentShot.id);
 
         setCurrentVideoUrl(currentShot.video_url || '');
 
@@ -250,6 +281,15 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
         };
         loadComments();
     }, [currentShot?.id]);
+
+    // Fetch approval info when currentShot changes
+    useEffect(() => {
+        if (!currentShot) return;
+        fetch(`/api/approvals?taskId=${currentShot.id}&projectId=${projectId}`)
+            .then(r => r.json())
+            .then(data => setApprovalInfo(data))
+            .catch(() => {});
+    }, [currentShot?.id, projectId]);
 
     // Scroll filmstrip to active card (manual scroll to avoid page scroll on mobile)
     useEffect(() => {
@@ -792,14 +832,50 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
         try {
             const doneStatus = taskStatuses.find(s => s.short_name === 'done' || s.name.toLowerCase() === 'done');
             if (!doneStatus) { toast.error('Could not find "Done" status'); setIsSubmitting(false); return; }
-            const res = await fetch('/api/comment', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ taskId: currentShot.id, comment: 'Approved by client', taskStatusId: doneStatus.id })
-            });
-            if (!res.ok) throw new Error('Failed');
-            setShotStatuses(prev => ({ ...prev, [currentShot.id]: { name: 'Done', short: 'done' } }));
-            setComments(prev => [{ id: Date.now(), user: 'Client (You)', text: 'Approved by client', time: 'Just now' }, ...prev]);
-            toast.success('Shot approved');
+
+            // Check if multi-approver mode
+            const isMultiMode = approvalInfo && approvalInfo.mode === 'multi' && approvalInfo.assignedApprovers?.length > 0;
+
+            if (isMultiMode) {
+                // Post approval to multi-approver endpoint
+                const approvalRes = await fetch('/api/approvals', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ taskId: currentShot.id, projectId, email: clientUser?.email })
+                });
+                if (!approvalRes.ok) throw new Error('Failed to submit approval');
+                const approvalData = await approvalRes.json();
+
+                if (approvalData.isFullyApproved) {
+                    // All approvers done — update Kitsu status
+                    const res = await fetch('/api/comment', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ taskId: currentShot.id, comment: 'Approved by client', taskStatusId: doneStatus.id })
+                    });
+                    if (!res.ok) throw new Error('Failed');
+                    setShotStatuses(prev => ({ ...prev, [currentShot.id]: { name: 'Done', short: 'done' } }));
+                    setComments(prev => [{ id: Date.now(), user: clientUser?.name || 'Client (You)', text: 'Approved by client', time: 'Just now', replies: [] }, ...prev]);
+                    toast.success('All approvers done — shot approved!');
+                } else {
+                    toast.success('Your approval recorded');
+                }
+
+                // Refresh approval info
+                fetch(`/api/approvals?taskId=${currentShot.id}&projectId=${projectId}`)
+                    .then(r => r.json())
+                    .then(data => setApprovalInfo(data))
+                    .catch(() => {});
+            } else {
+                // Single approver flow
+                const res = await fetch('/api/comment', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ taskId: currentShot.id, comment: 'Approved by client', taskStatusId: doneStatus.id })
+                });
+                if (!res.ok) throw new Error('Failed');
+                setShotStatuses(prev => ({ ...prev, [currentShot.id]: { name: 'Done', short: 'done' } }));
+                setComments(prev => [{ id: Date.now(), user: clientUser?.name || 'Client (You)', text: 'Approved by client', time: 'Just now', replies: [] }, ...prev]);
+                toast.success('Shot approved');
+            }
         } catch (err) { toast.error('Error: ' + err.message); }
         setIsSubmitting(false);
     };
@@ -860,10 +936,11 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
             // Add comment locally
             setComments(prev => [{
                 id: commentData.id || Date.now(),
-                user: 'Client (You)',
+                user: clientUser?.name || 'Client (You)',
                 text: fullComment,
                 time: 'Just now',
-                attachmentCount: uploadedAttachmentCount
+                attachmentCount: uploadedAttachmentCount,
+                replies: []
             }, ...prev]);
             setCommentFrames(prev => [...prev, ...commentFramesForSubmission]);
             setNewComment('');
@@ -871,6 +948,52 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
 
         } catch (err) { toast.error('Failed to post comment: ' + err.message); }
         setCommentSubmitting(false);
+    };
+
+    // ── Submit comment reply to Kitsu ──
+    const submitReply = async (commentId) => {
+        if (!replyText.trim() || replySubmitting || !currentShot) return;
+        setReplySubmitting(true);
+        try {
+            const res = await fetch('/api/comment/reply', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    taskId: currentShot.id,
+                    commentId,
+                    text: replyText
+                })
+            });
+            if (!res.ok) {
+                const errData = await res.json();
+                throw new Error(errData.error || 'Failed to post reply');
+            }
+            const replyData = await res.json();
+
+            setComments(prev => prev.map(c => {
+                if (c.id === commentId) {
+                    const existingReplies = c.replies || [];
+                    return {
+                        ...c,
+                        replies: [...existingReplies, {
+                            id: replyData.id || Date.now(),
+                            user: 'Client (You)',
+                            text: replyText,
+                            time: 'Just now'
+                        }]
+                    };
+                }
+                return c;
+            }));
+
+            setReplyText('');
+            setActiveReplyCommentId(null);
+            toast.success('Reply submitted');
+        } catch (err) {
+            toast.error('Failed to post reply: ' + err.message);
+        } finally {
+            setReplySubmitting(false);
+        }
     };
 
     const getStatusColor = (short) => {
@@ -1003,6 +1126,9 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
                         {effectiveStatus.name}
                     </span>
                 </div>
+                {clientUser && (
+                    <span className="pl-greeting animate-fade-in">Hello, {clientUser.name}! 👋</span>
+                )}
                 <div className="playlist-header-right">
                     {/* Hide / Show Done toggle */}
                     <button
@@ -1313,22 +1439,56 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
 
                     <div className="playlist-decision">
                         <h4>Decision</h4>
-                        {isCurrentApproved ? (
-                            <button className="pl-action-btn pl-approved-btn" disabled>
-                                <CheckCircle size={18} /> Approved ✓
-                            </button>
+                        {/* Multi-approver status */}
+                        {approvalInfo && approvalInfo.mode === 'multi' && approvalInfo.assignedApprovers?.length > 0 ? (
+                            <div className="pl-multi-approve">
+                                {isCurrentApproved ? (
+                                    <button className="pl-action-btn pl-approved-btn" disabled>
+                                        <CheckCircle size={18} /> Approved ✓
+                                    </button>
+                                ) : approvalInfo.approvedBy?.includes(clientUser?.email) ? (
+                                    <button className="pl-action-btn pl-approved-btn" disabled>
+                                        <CheckCircle size={18} /> Approved by You
+                                    </button>
+                                ) : (
+                                    <button className="pl-action-btn pl-approve-btn" onClick={handleApprove} disabled={isSubmitting}>
+                                        {isSubmitting ? <Loader2 size={18} className="spin" /> : <CheckCircle size={18} />}
+                                        Approve
+                                    </button>
+                                )}
+                                <div className="pl-approval-checklist">
+                                    <span className="pl-approval-count">
+                                        {approvalInfo.approvedBy?.length || 0} of {approvalInfo.assignedApprovers?.length || 0} approved
+                                    </span>
+                                    {approvalInfo.assignedApprovers.map(a => (
+                                        <div key={a.email} className={`pl-approver-row ${a.hasApproved ? 'approved' : ''}`}>
+                                            <span className="pl-approver-check">{a.hasApproved ? '✓' : '○'}</span>
+                                            <span className="pl-approver-name">{a.name}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
                         ) : (
-                            <button className="pl-action-btn pl-approve-btn" onClick={handleApprove} disabled={isSubmitting}>
-                                {isSubmitting ? <Loader2 size={18} className="spin" /> : <CheckCircle size={18} />}
-                                Approve
-                            </button>
+                            // Existing single-approver logic
+                            isCurrentApproved ? (
+                                <button className="pl-action-btn pl-approved-btn" disabled>
+                                    <CheckCircle size={18} /> Approved ✓
+                                </button>
+                            ) : (
+                                <button className="pl-action-btn pl-approve-btn" onClick={handleApprove} disabled={isSubmitting}>
+                                    {isSubmitting ? <Loader2 size={18} className="spin" /> : <CheckCircle size={18} />}
+                                    Approve
+                                </button>
+                            )
                         )}
                         <p className="pl-decision-hint">
                             {isCurrentApproved 
                                 ? 'This shot has been approved.' 
-                                : isSharedView 
-                                    ? 'Requesting changes or approving will automatically update the status.'
-                                    : 'Posting feedback will automatically request changes (Retake)'}
+                                : approvalInfo?.mode === 'multi'
+                                    ? `Requires approval from all ${approvalInfo.assignedApprovers?.length || 0} assigned reviewers.`
+                                    : isSharedView 
+                                        ? 'Requesting changes or approving will automatically update the status.'
+                                        : 'Posting feedback will automatically request changes (Retake)'}
                         </p>
                     </div>
 
@@ -1404,6 +1564,74 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
                                             </div>
                                         </div>
                                         <p className="pl-comment-text">{displayText}</p>
+                                        
+                                        {/* Action buttons (Reply) */}
+                                        <div className="pl-comment-actions">
+                                            <button 
+                                                className={`pl-reply-trigger-btn ${activeReplyCommentId === c.id ? 'active' : ''}`}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setActiveReplyCommentId(activeReplyCommentId === c.id ? null : c.id);
+                                                    setReplyText('');
+                                                }}
+                                            >
+                                                <MessageSquare size={12} />
+                                                <span>Reply</span>
+                                            </button>
+                                        </div>
+
+                                        {/* Replies list */}
+                                        {c.replies && c.replies.length > 0 && (
+                                            <div className="pl-replies-list" onClick={(e) => e.stopPropagation()}>
+                                                <div className="pl-thread-connector" />
+                                                {c.replies.map(r => (
+                                                    <div key={r.id} className="pl-reply-item">
+                                                        <div className="pl-reply-header">
+                                                            <span className="pl-reply-user">{r.user}</span>
+                                                            <span className="pl-reply-time">{r.time}</span>
+                                                        </div>
+                                                        <p className="pl-reply-text">{r.text}</p>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        {/* Inline reply form */}
+                                        {activeReplyCommentId === c.id && (
+                                            <div className="pl-nested-reply-form" onClick={(e) => e.stopPropagation()}>
+                                                <textarea
+                                                    placeholder="Write a reply or remark..."
+                                                    value={replyText}
+                                                    onChange={(e) => setReplyText(e.target.value)}
+                                                    rows={2}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter' && !e.shiftKey) {
+                                                            e.preventDefault();
+                                                            submitReply(c.id);
+                                                        }
+                                                    }}
+                                                />
+                                                <div className="pl-nested-reply-buttons">
+                                                    <button 
+                                                        className="pl-nested-cancel-btn" 
+                                                        onClick={() => {
+                                                            setActiveReplyCommentId(null);
+                                                            setReplyText('');
+                                                        }}
+                                                        disabled={replySubmitting}
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                    <button 
+                                                        className="pl-nested-submit-btn" 
+                                                        onClick={() => submitReply(c.id)}
+                                                        disabled={replySubmitting || !replyText.trim()}
+                                                    >
+                                                        {replySubmitting ? <Loader2 size={12} className="spin" /> : 'Send'}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 );
                             })}
@@ -1428,6 +1656,7 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
                             style={{ '--status-color': statusColor }}
                         >
                             <div className="filmstrip-thumb">
+                                {!readStatus[shot.id] && <span className="pl-new-badge">NEW</span>}
                                 {shot.thumbnail_url ? (
                                     <Image src={shot.thumbnail_url} alt={shot.entity_name} fill sizes="200px" className="filmstrip-thumb-img" />
                                 ) : (

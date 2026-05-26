@@ -396,3 +396,323 @@
         padding: 32px 24px;
     }
 }
+
+/* ── Dashboard Tabs ── */
+.dashboard-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 24px;
+}
+
+.dashboard-tab {
+    padding: 8px 20px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid transparent;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.dashboard-tab:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-primary);
+}
+
+.dashboard-tab.active {
+    background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+    color: white;
+    border-color: transparent;
+}
+
+.pending-badge {
+    background: var(--accent-amber);
+    color: #000;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 1px 7px;
+    border-radius: 10px;
+    min-width: 18px;
+    text-align: center;
+}
+
+/* ── Access Control Section ── */
+.access-tab-content {
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+}
+
+.access-section {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.access-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--text-primary);
+}
+
+.access-header h2 {
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.user-group-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 8px;
+    margin-bottom: 4px;
+}
+
+.user-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.user-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    margin-bottom: 4px;
+    border-radius: 12px;
+}
+
+.user-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid var(--glass-border);
+}
+
+.user-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+    min-width: 0;
+}
+
+.user-name {
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.user-email {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.user-status-badge {
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+}
+
+.status-pending {
+    background: rgba(245, 158, 11, 0.12);
+    color: var(--accent-amber);
+    border: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+.status-approved {
+    background: rgba(16, 185, 129, 0.12);
+    color: var(--accent-green);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.status-rejected {
+    background: rgba(239, 68, 68, 0.12);
+    color: var(--accent-red);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.nickname-input {
+    width: 100px;
+    padding: 5px 8px;
+    border-radius: 6px;
+    border: 1px solid var(--glass-border);
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--text-primary);
+    font-size: 0.8rem;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.nickname-input:focus {
+    border-color: var(--accent-cyan);
+}
+
+.nickname-input::placeholder {
+    color: var(--text-muted);
+    opacity: 0.6;
+}
+
+.user-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.user-action-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--glass-border);
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--text-secondary);
+    transition: all 0.2s;
+}
+
+.user-action-btn.approve {
+    color: var(--accent-green);
+    border-color: rgba(16, 185, 129, 0.2);
+}
+
+.user-action-btn.approve:hover {
+    background: rgba(16, 185, 129, 0.15);
+    border-color: var(--accent-green);
+    transform: scale(1.05);
+}
+
+.user-action-btn.reject {
+    color: var(--accent-red);
+    border-color: rgba(239, 68, 68, 0.2);
+}
+
+.user-action-btn.reject:hover {
+    background: rgba(239, 68, 68, 0.15);
+    border-color: var(--accent-red);
+    transform: scale(1.05);
+}
+
+/* ── Project Approval Settings ── */
+.project-settings-section {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.project-setting-row {
+    padding: 20px;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.project-setting-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.project-setting-header h3 {
+    font-size: 1rem;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.approval-toggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.toggle-label {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    transition: color 0.2s;
+}
+
+.toggle-label.active {
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.toggle-switch {
+    width: 40px;
+    height: 22px;
+    border-radius: 11px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--glass-border);
+    position: relative;
+    cursor: pointer;
+    transition: background 0.3s, border-color 0.3s;
+    padding: 0;
+}
+
+.toggle-switch.on {
+    background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+    border-color: transparent;
+}
+
+.toggle-knob {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: white;
+    transition: transform 0.2s;
+}
+
+.toggle-switch.on .toggle-knob {
+    transform: translateX(18px);
+}
+
+.approver-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 12px 16px;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 8px;
+    border: 1px solid var(--glass-border);
+}
+
+.approver-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 4px 0;
+}
+
+.approver-checkbox input[type="checkbox"] {
+    accent-color: var(--accent-cyan);
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+
+.approver-checkbox:hover {
+    color: var(--text-primary);
+}

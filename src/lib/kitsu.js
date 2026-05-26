@@ -130,7 +130,8 @@ export async function getProjectsWithStats() {
       tasks = await fetchKitsuData(`/data/tasks?project_id=${project.id}&task_type_id=${reviewTaskType.id}`).catch(() => []);
     }
 
-    const activeTasks = tasks.filter(t => (statusMap[t.task_status_id] || '') !== 'todo');
+    const allowedStatuses = ['retake', 'wfa', 'done', 'approved'];
+    const activeTasks = tasks.filter(t => allowedStatuses.includes(statusMap[t.task_status_id] || ''));
     const approvedTasks = activeTasks.filter(t => {
       const s = statusMap[t.task_status_id] || '';
       return s === 'done' || s === 'approved';
@@ -198,7 +199,9 @@ export async function getClientReviewTasks(projectId) {
     .filter(item => {
       const status = (item.task_status_name || '').toLowerCase();
       const shortStatus = (item.task_status_short || '').toLowerCase();
-      return status !== 'todo' && shortStatus !== 'todo';
+      const allowedShorts = ['retake', 'wfa', 'done', 'approved'];
+      const allowedNames = ['retake', 'waiting for approval', 'done', 'approved'];
+      return allowedShorts.includes(shortStatus) || allowedNames.includes(status);
     });
 }
 

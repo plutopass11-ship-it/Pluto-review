@@ -1244,6 +1244,175 @@
     word-break: break-word;
 }
 
+.pl-comment-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 8px;
+    margin-bottom: 4px;
+}
+
+.pl-reply-trigger-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: transparent;
+    border: none;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #64748b;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: all 0.15s ease;
+}
+
+.pl-reply-trigger-btn:hover {
+    color: #8b5cf6;
+    background: rgba(139, 92, 246, 0.08);
+}
+
+.pl-reply-trigger-btn.active {
+    color: #8b5cf6;
+    background: rgba(139, 92, 246, 0.12);
+}
+
+.pl-replies-list {
+    position: relative;
+    margin-top: 10px;
+    padding-left: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.pl-thread-connector {
+    position: absolute;
+    left: 4px;
+    top: 0;
+    bottom: 16px;
+    width: 2px;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 1px;
+}
+
+.pl-reply-item {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: 8px;
+    padding: 8px 12px;
+    position: relative;
+}
+
+.pl-reply-item::before {
+    content: '';
+    position: absolute;
+    left: -14px;
+    top: 16px;
+    width: 14px;
+    height: 2px;
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.pl-reply-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.pl-reply-user {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #cbd5e1;
+}
+
+.pl-reply-time {
+    font-size: 0.65rem;
+    color: #475569;
+}
+
+.pl-reply-text {
+    font-size: 0.8rem;
+    color: #94a3b8;
+    line-height: 1.4;
+    margin: 0;
+    word-break: break-word;
+}
+
+.pl-nested-reply-form {
+    margin-top: 10px;
+    padding-left: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.pl-nested-reply-form textarea {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    color: #e2e8f0;
+    padding: 8px 12px;
+    font-family: inherit;
+    font-size: 0.8rem;
+    resize: none;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.pl-nested-reply-form textarea:focus {
+    border-color: rgba(139, 92, 246, 0.3);
+}
+
+.pl-nested-reply-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.pl-nested-cancel-btn {
+    background: transparent;
+    border: none;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #64748b;
+    cursor: pointer;
+    padding: 5px 10px;
+    border-radius: 6px;
+    transition: all 0.15s ease;
+}
+
+.pl-nested-cancel-btn:hover {
+    color: #f1f5f9;
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.pl-nested-submit-btn {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    border: none;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: white;
+    cursor: pointer;
+    padding: 5px 12px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.15s ease;
+}
+
+.pl-nested-submit-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(99, 102, 241, 0.3);
+}
+
+.pl-nested-submit-btn:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
 .playlist-filmstrip {
     display: flex;
     gap: 8px;

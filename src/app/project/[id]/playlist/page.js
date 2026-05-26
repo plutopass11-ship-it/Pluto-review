@@ -52,11 +52,21 @@ export default async function PlaylistPage(props) {
                 initialComments = commentsData
                     .filter(c => c.text && c.text.trim())
                     .map(c => {
+                        const mappedReplies = (c.replies || [])
+                            .map(r => ({
+                                id: r.id,
+                                user: personsMap[r.person_id] || 'User',
+                                text: r.text || '',
+                                time: formatUtcDateTime(r.created_at || r.date)
+                            }))
+                            .filter(r => r.text && r.text.trim());
+
                         return {
                             id: c.id,
                             user: personsMap[c.person_id] || 'User',
                             text: c.text,
-                            time: formatUtcDateTime(c.created_at)
+                            time: formatUtcDateTime(c.created_at),
+                            replies: mappedReplies
                         };
                     });
             }

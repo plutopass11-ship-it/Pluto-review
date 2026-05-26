@@ -1,5 +1,7 @@
 import { getKitsuToken, getKitsuApiUrl, fetchKitsuData } from '@/lib/kitsu';
 import { formatUtcDateTime } from '@/lib/datetime';
+import { getSession } from '@/lib/session';
+import { getUserByEmail, getDisplayName } from '@/lib/user-store';
 
 /**
  * GET /api/comment?taskId=<task_id>
@@ -31,15 +33,34 @@ export async function GET(request) {
             attachmentCountByCommentId[attachment.comment_id] = (attachmentCountByCommentId[attachment.comment_id] || 0) + 1;
         });
 
+        const prefixRegex = /^\[([^\]]+)\]:\s*/;
+
         const result = comments
             .filter(c => c.text && c.text.trim())
             .map(c => {
+                const mappedReplies = (c.replies || [])
+                    .map(r => {
+                        const rText = r.text || '';
+                        const rMatch = rText.match(prefixRegex);
+                        return {
+                            id: r.id,
+                            user: rMatch ? rMatch[1] : (personsMap[r.person_id] || 'User'),
+                            text: rMatch ? rText.replace(prefixRegex, '') : rText,
+                            time: formatUtcDateTime(r.created_at || r.date)
+                        };
+                    })
+                    .filter(r => r.text && r.text.trim());
+
+                const commentText = c.text || '';
+                const match = commentText.match(prefixRegex);
+
                 return {
                     id: c.id,
-                    user: personsMap[c.person_id] || 'User',
-                    text: c.text,
+                    user: match ? match[1] : (personsMap[c.person_id] || 'User'),
+                    text: match ? commentText.replace(prefixRegex, '') : commentText,
                     time: formatUtcDateTime(c.created_at),
-                    attachmentCount: attachmentCountByCommentId[c.id] || 0
+                    attachmentCount: attachmentCountByCommentId[c.id] || 0,
+                    replies: mappedReplies
                 };
             });
 
@@ -83,10 +104,20 @@ export async function POST(request) {
             statusId = task.task_status_id;
         }
 
+        // Prepend user display name if session exists
+        let finalComment = comment || '';
+        const session = await getSession();
+        if (session) {
+            const sessionUser = await getUserByEmail(session.email);
+            if (sessionUser) {
+                finalComment = `[${getDisplayName(sessionUser)}]: ${finalComment}`;
+            }
+        }
+
         // Zou uses "comment" field for the text body, NOT "text"
         const payload = {
             task_status_id: statusId,
-            comment: comment || ''
+            comment: finalComment
         };
 
         const res = await fetch(`${getKitsuApiUrl()}/actions/tasks/${taskId}/comment`, {

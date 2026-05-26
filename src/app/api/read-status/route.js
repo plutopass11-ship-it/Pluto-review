@@ -1,7 +1,8 @@
 import fs from 'fs/promises';
-import path from 'path';
+import { join } from 'path';
+import { getSession } from '@/lib/session';
 
-const DB_FILE = path.join(process.cwd(), '.kitsu-read-status.json');
+const DB_FILE = join(process.cwd(), 'data', 'read-status.json');
 
 async function getReadStatus() {
   try {
@@ -15,10 +16,21 @@ async function getReadStatus() {
   }
 }
 
+async function saveReadStatus(readStatus) {
+  const { mkdir } = fs;
+  await mkdir(join(process.cwd(), 'data'), { recursive: true });
+  await fs.writeFile(DB_FILE, JSON.stringify(readStatus, null, 2), 'utf-8');
+}
+
 export async function GET(request) {
   try {
+    const session = await getSession();
+    if (!session) {
+      return Response.json({});
+    }
+
     const readStatus = await getReadStatus();
-    return Response.json(readStatus);
+    return Response.json(readStatus[session.email] || {});
   } catch (error) {
     return Response.json({ error: 'Failed to read status' }, { status: 500 });
   }
@@ -26,15 +38,21 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
+    const session = await getSession();
+    if (!session) {
+      return Response.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+
     const { shotId } = await request.json();
     if (!shotId) {
       return Response.json({ error: 'shotId is required' }, { status: 400 });
     }
 
     const readStatus = await getReadStatus();
-    readStatus[shotId] = true;
+    if (!readStatus[session.email]) readStatus[session.email] = {};
+    readStatus[session.email][shotId] = true;
 
-    await fs.writeFile(DB_FILE, JSON.stringify(readStatus, null, 2), 'utf-8');
+    await saveReadStatus(readStatus);
     return Response.json({ success: true });
   } catch (error) {
     return Response.json({ error: 'Failed to update read status' }, { status: 500 });
@@ -43,15 +61,22 @@ export async function POST(request) {
 
 export async function DELETE(request) {
   try {
+    const session = await getSession();
+    if (!session) {
+      return Response.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+
     const { shotId } = await request.json();
     if (!shotId) {
       return Response.json({ error: 'shotId is required' }, { status: 400 });
     }
 
     const readStatus = await getReadStatus();
-    delete readStatus[shotId];
+    if (readStatus[session.email]) {
+      delete readStatus[session.email][shotId];
+    }
 
-    await fs.writeFile(DB_FILE, JSON.stringify(readStatus, null, 2), 'utf-8');
+    await saveReadStatus(readStatus);
     return Response.json({ success: true });
   } catch (error) {
     return Response.json({ error: 'Failed to update read status' }, { status: 500 });
