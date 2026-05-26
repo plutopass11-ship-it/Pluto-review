@@ -14,6 +14,10 @@ services:
       - KITSU_EMAIL=plutobase@flyingpluto.ai
       - KITSU_PASSWORD=Styx@001
       - NODE_ENV=production
+    env_file:
+      - .env.local
+    volumes:
+      - ./data:/app/data
     logging:
       driver: "json-file"
       options:
