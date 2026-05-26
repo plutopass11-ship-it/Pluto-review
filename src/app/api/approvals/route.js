@@ -2,6 +2,7 @@ import { promises as fs } from 'fs';
 import { join } from 'path';
 import { getSession } from '@/lib/session';
 import { getUserByEmail, getDisplayName } from '@/lib/user-store';
+import { fetchKitsuData } from '@/lib/kitsu';
 
 const APPROVALS_FILE = join(process.cwd(), 'data', 'project-approvals.json');
 const SETTINGS_FILE = join(process.cwd(), 'data', 'project-settings.json');
@@ -45,7 +46,54 @@ export async function GET(request) {
         const settings = allSettings[projectId] || { approvalMode: 'single', assignedApprovers: [] };
 
         const approvals = await getApprovals();
-        const taskApprovals = approvals[taskId] || [];
+        let taskApprovals = approvals[taskId] || [];
+
+        // --- AUTO-RESET LOGIC FOR NEW VERSIONS ---
+        // Fetch current task status from Kitsu to see if it was reset back to WFA/Retake
+        const [task, taskStatuses] = await Promise.all([
+            fetchKitsuData(`/data/tasks/${taskId}`).catch(() => null),
+            fetchKitsuData('/data/task-status').catch(() => [])
+        ]);
+
+        if (task) {
+            const statusMap = {};
+            taskStatuses.forEach(s => statusMap[s.id] = (s.short_name || s.name || '').toLowerCase());
+            const currentStatus = statusMap[task.task_status_id] || '';
+
+            // If the status is WFA, Waiting, Retake, or WIP on Kitsu
+            const isWaitingOrRetake = ['wfa', 'waiting', 'waiting for approval', 'retake', 'rejected', 'wip'].includes(currentStatus);
+
+            if (isWaitingOrRetake) {
+                // If it was previously fully approved under the current settings
+                const wasFullyApproved = settings.approvalMode === 'single'
+                    ? taskApprovals.length > 0
+                    : settings.assignedApprovers.length > 0 && settings.assignedApprovers.every(email => 
+                        taskApprovals.some(e => e.toLowerCase() === email.toLowerCase())
+                      );
+
+                if (wasFullyApproved) {
+                    // Reset approvals in our database
+                    approvals[taskId] = [];
+                    await saveApprovals(approvals);
+
+                    // Clear read-status for all users so the "NEW" badge shows up again
+                    const readStatusFile = join(process.cwd(), 'data', 'read-status.json');
+                    try {
+                        const data = await fs.readFile(readStatusFile, 'utf-8');
+                        const readStatus = JSON.parse(data);
+                        Object.keys(readStatus).forEach(email => {
+                            if (readStatus[email]) {
+                                delete readStatus[email][taskId];
+                            }
+                        });
+                        await fs.writeFile(readStatusFile, JSON.stringify(readStatus, null, 2), 'utf-8');
+                    } catch (e) {}
+
+                    // Reset local variable so we return an empty checklist for this request
+                    taskApprovals = [];
+                }
+            }
+        }
 
         const assignedApproversWithNames = await Promise.all(
             settings.assignedApprovers.map(async (email) => {
