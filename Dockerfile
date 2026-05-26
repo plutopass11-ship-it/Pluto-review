@@ -42,6 +42,9 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 RUN chmod -R +r /app/public
 
+# Ensure the nextjs user has write permissions for the entire /app directory (to create data/ and read envs)
+RUN chown -R nextjs:nodejs /app
+
 USER nextjs
 
 EXPOSE 4888
