@@ -846,18 +846,50 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
                 if (!approvalRes.ok) throw new Error('Failed to submit approval');
                 const approvalData = await approvalRes.json();
 
+                const totalRequired = approvalData.totalRequired || 0;
+                const approvedCount = approvalData.approvedBy?.length || 0;
+
                 if (approvalData.isFullyApproved) {
                     // All approvers done — update Kitsu status
                     const res = await fetch('/api/comment', {
                         method: 'POST', headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ taskId: currentShot.id, comment: 'Approved by client', taskStatusId: doneStatus.id })
+                        body: JSON.stringify({ 
+                            taskId: currentShot.id, 
+                            comment: `Approved this shot - ALL approvals complete! (${approvedCount} of ${totalRequired})`, 
+                            taskStatusId: doneStatus.id 
+                        })
                     });
                     if (!res.ok) throw new Error('Failed');
                     setShotStatuses(prev => ({ ...prev, [currentShot.id]: { name: 'Done', short: 'done' } }));
-                    setComments(prev => [{ id: Date.now(), user: clientUser?.name || 'Client (You)', text: 'Approved by client', time: 'Just now', replies: [] }, ...prev]);
+                    setComments(prev => [{ 
+                        id: Date.now(), 
+                        user: clientUser?.name || 'Client (You)', 
+                        text: `Approved this shot - ALL approvals complete! (${approvedCount} of ${totalRequired})`, 
+                        time: 'Just now', 
+                        replies: [] 
+                    }, ...prev]);
                     toast.success('All approvers done — shot approved!');
                 } else {
-                    toast.success('Your approval recorded');
+                    // Partial approval — post comment to Kitsu without changing status
+                    const res = await fetch('/api/comment', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            taskId: currentShot.id, 
+                            comment: `Approved this shot (${approvedCount} of ${totalRequired} approvals)`
+                        })
+                    });
+                    if (!res.ok) throw new Error('Failed to post approval comment to Kitsu');
+                    
+                    // Add it locally to comments list so it renders instantly
+                    setComments(prev => [{ 
+                        id: Date.now(), 
+                        user: clientUser?.name || 'Client (You)', 
+                        text: `Approved this shot (${approvedCount} of ${totalRequired} approvals)`, 
+                        time: 'Just now', 
+                        replies: [] 
+                    }, ...prev]);
+
+                    toast.success('Your approval recorded and posted to Kitsu');
                 }
 
                 // Refresh approval info
