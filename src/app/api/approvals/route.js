@@ -52,14 +52,17 @@ export async function GET(request) {
                 const user = await getUserByEmail(email);
                 return {
                     email,
-                    name: user ? getDisplayName(user) : email
+                    name: user ? getDisplayName(user) : email,
+                    hasApproved: taskApprovals.some(e => e.toLowerCase() === email.toLowerCase())
                 };
             })
         );
 
         const isFullyApproved = settings.approvalMode === 'single'
             ? taskApprovals.length > 0
-            : settings.assignedApprovers.length > 0 && settings.assignedApprovers.every(email => taskApprovals.includes(email));
+            : settings.assignedApprovers.length > 0 && settings.assignedApprovers.every(email => 
+                taskApprovals.some(e => e.toLowerCase() === email.toLowerCase())
+              );
 
         return Response.json({
             mode: settings.approvalMode,
@@ -96,7 +99,7 @@ export async function POST(request) {
         const approvals = await getApprovals();
         if (!approvals[taskId]) approvals[taskId] = [];
 
-        if (!approvals[taskId].includes(session.email)) {
+        if (!approvals[taskId].some(e => e.toLowerCase() === session.email.toLowerCase())) {
             approvals[taskId].push(session.email);
         }
 
@@ -104,7 +107,9 @@ export async function POST(request) {
 
         const isFullyApproved = settings.approvalMode === 'single'
             ? true
-            : settings.assignedApprovers.length > 0 && settings.assignedApprovers.every(email => approvals[taskId].includes(email));
+            : settings.assignedApprovers.length > 0 && settings.assignedApprovers.every(email => 
+                approvals[taskId].some(e => e.toLowerCase() === email.toLowerCase())
+              );
 
         return Response.json({
             isFullyApproved,

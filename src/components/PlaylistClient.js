@@ -834,7 +834,7 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
             if (!doneStatus) { toast.error('Could not find "Done" status'); setIsSubmitting(false); return; }
 
             // Check if multi-approver mode
-            const isMultiMode = approvalInfo && approvalInfo.mode === 'multi' && approvalInfo.assignedApprovers?.length > 0;
+            const isMultiMode = approvalInfo && approvalInfo.mode === 'multiple' && approvalInfo.assignedApprovers?.length > 0;
 
             if (isMultiMode) {
                 // Post approval to multi-approver endpoint
@@ -1472,13 +1472,13 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
                     <div className="playlist-decision">
                         <h4>Decision</h4>
                         {/* Multi-approver status */}
-                        {approvalInfo && approvalInfo.mode === 'multi' && approvalInfo.assignedApprovers?.length > 0 ? (
+                        {approvalInfo && approvalInfo.mode === 'multiple' && approvalInfo.assignedApprovers?.length > 0 ? (
                             <div className="pl-multi-approve">
                                 {isCurrentApproved ? (
                                     <button className="pl-action-btn pl-approved-btn" disabled>
                                         <CheckCircle size={18} /> Approved ✓
                                     </button>
-                                ) : approvalInfo.approvedBy?.includes(clientUser?.email) ? (
+                                ) : approvalInfo.approvedBy?.some(e => e.toLowerCase() === clientUser?.email?.toLowerCase()) ? (
                                     <button className="pl-action-btn pl-approved-btn" disabled>
                                         <CheckCircle size={18} /> Approved by You
                                     </button>
@@ -1516,7 +1516,7 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
                         <p className="pl-decision-hint">
                             {isCurrentApproved 
                                 ? 'This shot has been approved.' 
-                                : approvalInfo?.mode === 'multi'
+                                : approvalInfo?.mode === 'multiple'
                                     ? `Requires approval from all ${approvalInfo.assignedApprovers?.length || 0} assigned reviewers.`
                                     : isSharedView 
                                         ? 'Requesting changes or approving will automatically update the status.'
