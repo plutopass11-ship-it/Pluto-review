@@ -45,11 +45,13 @@ RUN chmod -R +r /app/public
 # Ensure the nextjs user has write permissions for the entire /app directory (to create data/ and read envs)
 RUN chown -R nextjs:nodejs /app
 
-USER nextjs
+# Copy entrypoint script
+COPY --chmod=755 entrypoint.sh /app/entrypoint.sh
 
 EXPOSE 4888
 
 ENV PORT 4888
 ENV HOSTNAME 0.0.0.0
 
-CMD ["node", "server.js"]
+# Run as root so entrypoint can fix volume permissions, then drop to nextjs
+ENTRYPOINT ["/app/entrypoint.sh"]
