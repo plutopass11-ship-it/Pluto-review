@@ -38,8 +38,19 @@ export async function GET(request) {
         const taskId = searchParams.get('taskId');
         const projectId = searchParams.get('projectId');
 
-        if (!taskId || !projectId) {
-            return Response.json({ error: 'Missing taskId or projectId' }, { status: 400 });
+        if (!projectId) {
+            return Response.json({ error: 'Missing projectId' }, { status: 400 });
+        }
+
+        if (!taskId) {
+            const allSettings = await getProjectSettings();
+            const settings = allSettings[projectId] || { approvalMode: 'single', assignedApprovers: [] };
+            const approvals = await getApprovals();
+            return Response.json({
+                mode: settings.approvalMode,
+                assignedApprovers: settings.assignedApprovers,
+                approvals
+            });
         }
 
         const allSettings = await getProjectSettings();

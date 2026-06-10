@@ -18,9 +18,18 @@ export default function ProjectClient({ tasks, projectName, projectId, isClientV
     const [statusFilters, setStatusFilters] = useState([{ label: 'All', value: 'all' }]);
     const [showFilterMenu, setShowFilterMenu] = useState(false);
     const [showPlaylistMenu, setShowPlaylistMenu] = useState(false);
+    const [viewingDeliveries, setViewingDeliveries] = useState(false);
+    const [clientUser, setClientUser] = useState(null);
     
     const filterRef = useRef(null);
     const playlistRef = useRef(null);
+
+    useEffect(() => {
+        try {
+            const stored = sessionStorage.getItem('parallax_user');
+            if (stored) setClientUser(JSON.parse(stored));
+        } catch {}
+    }, []);
 
     // Fetch dynamic task statuses
     useEffect(() => {
@@ -140,6 +149,13 @@ export default function ProjectClient({ tasks, projectName, projectId, isClientV
         return isFinalDelivery && (s === 'done' || s === 'approved');
     }) : [];
 
+    const doneShotsCount = useMemo(() => {
+        return baseReviewTasks.filter(t => {
+            const s = (t.task_status_short || '').toLowerCase();
+            return s === 'done' || s === 'approved';
+        }).length;
+    }, [baseReviewTasks]);
+
     // Get unique sequence names for playlist dropdown
     const sequenceNames = useMemo(() => {
         const names = [...new Set(baseReviewTasks.map(t => t.sequence_name || 'Uncategorized'))];
@@ -159,7 +175,11 @@ export default function ProjectClient({ tasks, projectName, projectId, isClientV
             // Status filter
             if (statusFilter !== 'all') {
                 const s = (t.task_status_short || '').toLowerCase();
-                if (s !== statusFilter) return false;
+                if (statusFilter === 'approved' || statusFilter === 'done') {
+                    if (s !== 'approved' && s !== 'done') return false;
+                } else {
+                    if (s !== statusFilter) return false;
+                }
             }
             return true;
         });
@@ -213,9 +233,13 @@ export default function ProjectClient({ tasks, projectName, projectId, isClientV
         if (!taskList || taskList.length === 0) return null;
         const grouped = groupTasksBySequence(taskList);
 
+        const displayTitle = (statusFilter === 'approved' || statusFilter === 'done')
+            ? (isRead ? 'Reviewed Done Shots' : 'New Done Shots')
+            : title;
+
         return (
             <div className="status-section">
-                <h2 className="status-header">{title}</h2>
+                <h2 className="status-header">{displayTitle}</h2>
                 {Object.entries(grouped).map(([sequenceName, shots]) => (
                     <section key={sequenceName} className="sequence-group">
                         <div className="sequence-header sticky-header glass-panel">
@@ -300,113 +324,217 @@ export default function ProjectClient({ tasks, projectName, projectId, isClientV
         );
     };
 
-    return (
-        <div className="project-container animate-fade-in">
-            {selectedShots.length > 0 && (
-                <div className="batch-download-bar glass-panel animate-slide-up">
-                    <span className="selected-count">{selectedShots.length} shot{selectedShots.length !== 1 ? 's' : ''} selected</span>
-                    <div className="batch-actions">
-                        <button className="glass-button" onClick={() => setSelectedShots([])}>Cancel</button>
-                        <button className="glass-button" style={{ color: '#10b981', borderColor: '#10b98155' }} onClick={handleBatchDownload}>
-                            <Download size={16} /> Download
-                        </button>
-                    </div>
-                </div>
-            )}
-            <header className="project-header">
-                {!isClientView && (
-                <div className="breadcrumb">
-                    <Link href="/dashboard">Dashboard</Link>
-                    <span className="separator">/</span>
-                    <span className="current">{projectName}</span>
-                </div>
-                )}
+    const groupedFinal = groupTasksBySequence(filteredFinalTasks);
 
-                <div className="header-actions">
-                    {!isClientView && (
-                        <button className="glass-button" onClick={copyClientLink}>
-                            <Share2 size={16} /> Share
+    return (
+        <div className="project-layout-container animate-fade-in">
+            {/* Left Side Panel */}
+            <aside className="project-sidebar glass-panel">
+                <div className="sidebar-header">
+                    {clientUser ? (
+                        <div className="user-greeting">
+                            <span className="greeting-text">Hello,</span>
+                            <span className="user-name">{clientUser.name} 👋</span>
+                        </div>
+                    ) : (
+                        <div className="user-greeting">
+                            <span className="greeting-text">Hello, Reviewer! 👋</span>
+                        </div>
+                    )}
+                </div>
+                <div className="sidebar-divider" />
+                <nav className="sidebar-nav">
+                    <button 
+                        className={`sidebar-nav-btn ${!viewingDeliveries && statusFilter === 'all' ? 'active' : ''}`}
+                        onClick={() => { setViewingDeliveries(false); setStatusFilter('all'); }}
+                    >
+                        <Layers size={16} /> Active Review
+                    </button>
+                    <button 
+                        className={`sidebar-nav-btn ${!viewingDeliveries && (statusFilter === 'approved' || statusFilter === 'done') ? 'active' : ''}`}
+                        onClick={() => { setViewingDeliveries(false); setStatusFilter('approved'); }}
+                    >
+                        <CheckCircle size={16} style={{ color: '#3b82f6' }} /> Done Shots
+                        {doneShotsCount > 0 && <span className="sidebar-badge">{doneShotsCount}</span>}
+                    </button>
+                    {showFinalDeliveries && (
+                        <button 
+                            className={`sidebar-nav-btn ${viewingDeliveries ? 'active' : ''}`}
+                            onClick={() => setViewingDeliveries(true)}
+                        >
+                            <CheckCircle size={16} style={{ color: '#10b981' }} /> Delivered Shots
+                            {finalDeliveryTasks.length > 0 && <span className="sidebar-badge">{finalDeliveryTasks.length}</span>}
                         </button>
                     )}
-                    <div className="filter-dropdown-wrapper" ref={playlistRef}>
-                        <button className="glass-button playlist-btn" onClick={() => setShowPlaylistMenu(!showPlaylistMenu)}>
-                            <Play size={16} /> Playlist <ChevronDown size={14} />
-                        </button>
-                        {showPlaylistMenu && (
-                            <div className="filter-dropdown glass-panel playlist-dropdown">
-                                <Link
-                                    href={isClientView ? `/shared/${projectId}/playlist` : `/project/${projectId}/playlist`}
-                                    className="filter-option playlist-option"
-                                    onClick={() => setShowPlaylistMenu(false)}
-                                >
-                                    ▶ All Sequences
-                                </Link>
-                                <div className="playlist-dropdown-divider" />
-                                {sequenceNames.map(name => (
-                                    <Link
-                                        key={name}
-                                        href={isClientView ? `/shared/${projectId}/playlist?seq=${encodeURIComponent(name)}` : `/project/${projectId}/playlist?seq=${encodeURIComponent(name)}`}
-                                        className="filter-option playlist-option"
-                                        onClick={() => setShowPlaylistMenu(false)}
-                                    >
-                                        {name}
-                                    </Link>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                    <div className="search-bar glass-panel">
-                        <Search size={18} className="icon-muted" />
-                        <input
-                            type="text"
-                            placeholder="Search shots..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                        />
-                    </div>
-                    <div className="filter-dropdown-wrapper" ref={filterRef}>
-                        <button className="glass-button" onClick={() => setShowFilterMenu(!showFilterMenu)}>
-                            <Filter size={18} />
-                            {statusFilter !== 'all' ? statusFilters.find(f => f.value === statusFilter)?.label || 'Filter' : 'Filter'}
-                            <ChevronDown size={14} />
-                        </button>
-                        {showFilterMenu && (
-                            <div className="filter-dropdown glass-panel">
-                                {statusFilters.map(f => (
-                                    <button
-                                        key={f.value}
-                                        className={`filter-option ${statusFilter === f.value ? 'active' : ''}`}
-                                        onClick={() => { setStatusFilter(f.value); setShowFilterMenu(false); }}
-                                    >
-                                        {f.label}
-                                    </button>
-                                ))}
-                            </div>
-                        )}
+                </nav>
+                <div className="sidebar-divider" />
+                <div className="sidebar-section">
+                    <span className="sidebar-section-title">Playlists</span>
+                    <div className="sidebar-playlist-links">
+                        <Link
+                            href={isClientView ? `/shared/${projectId}/playlist` : `/project/${projectId}/playlist`}
+                            className="sidebar-playlist-link"
+                        >
+                            ▶ All Sequences
+                        </Link>
+                        {sequenceNames.map(name => (
+                            <Link
+                                key={name}
+                                href={isClientView ? `/shared/${projectId}/playlist?seq=${encodeURIComponent(name)}` : `/project/${projectId}/playlist?seq=${encodeURIComponent(name)}`}
+                                className="sidebar-playlist-link"
+                            >
+                                ↳ {name}
+                            </Link>
+                        ))}
                     </div>
                 </div>
-            </header>
+            </aside>
 
-            <div className="sequences-container">
-                {(filteredReviewTasks.length === 0 && (!showFinalDeliveries || filteredFinalTasks.length === 0)) && (
-                    <EmptyState 
-                        icon="search" 
-                        title="No Shots Found" 
-                        description={searchQuery || statusFilter !== 'all' ? 'No shots match your current search or filter criteria.' : 'No client review shots found for this project yet.'} 
-                    />
+            {/* Main Content Area */}
+            <div className="project-main-content">
+                {selectedShots.length > 0 && (
+                    <div className="batch-download-bar glass-panel animate-slide-up">
+                        <span className="selected-count">{selectedShots.length} shot{selectedShots.length !== 1 ? 's' : ''} selected</span>
+                        <div className="batch-actions">
+                            <button className="glass-button" onClick={() => setSelectedShots([])}>Cancel</button>
+                            <button className="glass-button" style={{ color: '#10b981', borderColor: '#10b98155' }} onClick={handleBatchDownload}>
+                                <Download size={16} /> Download
+                            </button>
+                        </div>
+                    </div>
                 )}
 
-                {renderSection('New Shots', unreadTasks, false)}
+                {viewingDeliveries ? (
+                    /* Delivered Shots View */
+                    <div className="project-container">
+                        <header className="project-header">
+                            <div className="breadcrumb">
+                                <span className="current">Delivered Shots ({filteredFinalTasks.length})</span>
+                            </div>
 
-                {readTasks.length > 0 && unreadTasks.length > 0 && <div className="nav-divider"></div>}
+                            <div className="header-actions">
+                                <div className="search-bar glass-panel">
+                                    <Search size={18} className="icon-muted" />
+                                    <input
+                                        type="text"
+                                        placeholder="Search delivered shots..."
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                    />
+                                </div>
+                            </div>
+                        </header>
 
-                {renderSection('Reviewed Shots', readTasks, true)}
+                        {finalDeliveryTasks.length > 0 && (
+                            <div className="delivered-stats-row" style={{ display: 'flex', gap: '24px', margin: '8px 0 24px 0' }}>
+                                <div className="delivered-stat-card glass-panel" style={{ padding: '16px 24px', display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '160px' }}>
+                                    <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--text-muted)', fontWeight: '600' }}>Delivered Shots</span>
+                                    <span style={{ fontSize: '2rem', fontWeight: '700', color: '#10b981' }}>{finalDeliveryTasks.length}</span>
+                                </div>
+                                <div className="delivered-stat-card glass-panel" style={{ padding: '16px 24px', display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '160px' }}>
+                                    <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--text-muted)', fontWeight: '600' }}>Sequences</span>
+                                    <span style={{ fontSize: '2rem', fontWeight: '700', color: 'var(--accent-purple)' }}>{Object.keys(groupedFinal).length}</span>
+                                </div>
+                            </div>
+                        )}
 
-                {showFinalDeliveries && filteredFinalTasks.length > 0 && (
-                    <>
-                        <div className="nav-divider"></div>
-                        {renderSection('Final Deliveries', filteredFinalTasks, true)}
-                    </>
+                        <div className="sequences-container">
+                            {filteredFinalTasks.length === 0 ? (
+                                <EmptyState 
+                                    icon="search" 
+                                    title="No Delivered Shots Found" 
+                                    description={searchQuery ? 'No delivered shots match your search.' : 'No shots have been delivered yet.'} 
+                                />
+                            ) : (
+                                Object.entries(groupedFinal).map(([sequenceName, shots]) => (
+                                    <section key={sequenceName} className="sequence-group">
+                                        <div className="sequence-header sticky-header glass-panel">
+                                            <h3 className="sequence-title-purple">{sequenceName}</h3>
+                                            <span className="shot-count">{shots.length} shots</span>
+                                        </div>
+
+                                        <div className="delivered-shots-list">
+                                            {shots.map(shot => (
+                                                <div key={shot.id} className="delivered-shot-badge glass-panel" title="Delivered & Approved">
+                                                    {shot.entity_name}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </section>
+                                ))
+                            )}
+                        </div>
+                    </div>
+                ) : (
+                    /* Active Review View */
+                    <div className="project-container">
+                        <header className="project-header">
+                            {!isClientView ? (
+                                <div className="breadcrumb">
+                                    <Link href="/dashboard">Dashboard</Link>
+                                    <span className="separator">/</span>
+                                    <span className="current">{projectName}</span>
+                                </div>
+                            ) : (
+                                <div className="breadcrumb">
+                                    <span className="current">{projectName}</span>
+                                </div>
+                            )}
+
+                            <div className="header-actions">
+                                {!isClientView && (
+                                    <button className="glass-button" onClick={copyClientLink}>
+                                        <Share2 size={16} /> Share
+                                    </button>
+                                )}
+                                <div className="search-bar glass-panel">
+                                    <Search size={18} className="icon-muted" />
+                                    <input
+                                        type="text"
+                                        placeholder="Search active shots..."
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                    />
+                                </div>
+                                <div className="filter-dropdown-wrapper" ref={filterRef}>
+                                    <button className="glass-button" onClick={() => setShowFilterMenu(!showFilterMenu)}>
+                                        <Filter size={18} />
+                                        {statusFilter !== 'all' ? statusFilters.find(f => f.value === statusFilter)?.label || 'Filter' : 'Filter'}
+                                        <ChevronDown size={14} />
+                                    </button>
+                                    {showFilterMenu && (
+                                        <div className="filter-dropdown glass-panel">
+                                            {statusFilters.map(f => (
+                                                <button
+                                                    key={f.value}
+                                                    className={`filter-option ${statusFilter === f.value ? 'active' : ''}`}
+                                                    onClick={() => { setStatusFilter(f.value); setShowFilterMenu(false); }}
+                                                >
+                                                    {f.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </header>
+
+                        <div className="sequences-container">
+                            {(filteredReviewTasks.length === 0) && (
+                                <EmptyState 
+                                    icon="search" 
+                                    title="No Shots Found" 
+                                    description={searchQuery || statusFilter !== 'all' ? 'No shots match your current search or filter criteria.' : 'No client review shots found for this project yet.'} 
+                                />
+                            )}
+
+                            {renderSection('New Shots', unreadTasks, false)}
+
+                            {readTasks.length > 0 && unreadTasks.length > 0 && <div className="nav-divider"></div>}
+
+                            {renderSection('Reviewed Shots', readTasks, true)}
+                        </div>
+                    </div>
                 )}
             </div>
         </div>

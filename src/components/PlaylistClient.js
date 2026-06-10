@@ -97,6 +97,7 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
     const [clientUser, setClientUser] = useState(null);
     const [readStatus, setReadStatus] = useState({});
     const [approvalInfo, setApprovalInfo] = useState(null);
+    const [projectApprovals, setProjectApprovals] = useState(null);
     const [hasPlayedOnce, setHasPlayedOnce] = useState(false);
     const [isDraggingTimeline, setIsDraggingTimeline] = useState(false);
     const [showDownloadMenu, setShowDownloadMenu] = useState(false);
@@ -190,6 +191,44 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
         const short = (s.short || '').toLowerCase();
         return short === 'done' || short === 'approved';
     })() : false;
+
+    // Multi-approve: compute whether to show the "awaiting your approval" banner
+    const pendingApprovalBanner = useMemo(() => {
+        if (!approvalInfo || approvalInfo.mode !== 'multiple') return null;
+        if (isCurrentApproved) return null;
+        if (!clientUser?.email) return null;
+
+        const isAssigned = approvalInfo.assignedApprovers?.some(
+            a => a.email.toLowerCase() === clientUser.email.toLowerCase()
+        );
+        if (!isAssigned) return null;
+
+        const alreadyApproved = approvalInfo.approvedBy?.some(
+            e => e.toLowerCase() === clientUser.email.toLowerCase()
+        );
+        if (alreadyApproved) return null;
+
+        // Get names of people who already approved
+        const approvedNames = approvalInfo.assignedApprovers
+            .filter(a => a.hasApproved)
+            .map(a => a.name);
+
+        if (approvedNames.length === 0) return null;
+
+        return { approvedNames };
+    }, [approvalInfo, isCurrentApproved, clientUser]);
+
+    // Fetch project-wide approvals
+    const refreshProjectApprovals = useCallback(() => {
+        fetch(`/api/approvals?projectId=${projectId}`)
+            .then(r => r.json())
+            .then(data => setProjectApprovals(data))
+            .catch(() => {});
+    }, [projectId]);
+
+    useEffect(() => {
+        refreshProjectApprovals();
+    }, [refreshProjectApprovals]);
 
     // Init
     useEffect(() => {
@@ -324,6 +363,22 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
             }
         }
     }, [currentIndex]);
+
+    // Add mouse wheel horizontal scrolling support to filmstrip
+    useEffect(() => {
+        const el = filmstripRef.current;
+        if (!el) return;
+
+        const handleWheel = (e) => {
+            if (e.deltaY !== 0) {
+                e.preventDefault();
+                el.scrollLeft += e.deltaY;
+            }
+        };
+
+        el.addEventListener('wheel', handleWheel, { passive: false });
+        return () => el.removeEventListener('wheel', handleWheel);
+    }, []);
 
     // ── Arrow key listener for frame-by-frame ──
     useEffect(() => {
@@ -919,6 +974,9 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
                     .then(r => r.json())
                     .then(data => setApprovalInfo(data))
                     .catch(() => {});
+                
+                // Refresh project-wide approvals
+                refreshProjectApprovals();
             } else {
                 // Single approver flow
                 const res = await fetch('/api/comment', {
@@ -1291,6 +1349,25 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
                             <span className="fs-shot-name">{currentShot?.entity_name || 'Shot'}</span>
                             <button className="fs-close-btn" onClick={toggleFullscreen} title="Exit Fullscreen (Esc)">
                                 <Minimize size={18} />
+                            </button>
+                        </div>
+                    )}
+
+                    {/* Multi-approve floating notification popup */}
+                    {pendingApprovalBanner && (
+                        <div className="multi-approve-floating-banner">
+                            <CheckCircle size={16} className="status-icon" />
+                            <span className="banner-text">
+                                <strong>{pendingApprovalBanner.approvedNames.join(', ')}</strong>
+                                {' '}approved this shot. Please confirm your approval.
+                            </span>
+                            <button
+                                className="banner-approve-btn"
+                                onClick={handleApprove}
+                                disabled={isSubmitting}
+                            >
+                                {isSubmitting ? <Loader2 size={14} className="spin" /> : <CheckCircle size={14} />}
+                                Confirm Approval
                             </button>
                         </div>
                     )}
@@ -1702,10 +1779,40 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
                     const isActive = shot.id === currentShot?.id;
                     const realIndex = seqShots.findIndex((s) => s.id === shot.id);
 
+                    // Check if shot is awaiting the current user's approval in multi-approve mode
+                    const isAwaitingCurrentUserConfirm = (() => {
+                        if (!projectApprovals || projectApprovals.mode !== 'multiple') return false;
+                        
+                        // If it's already marked approved or done on Kitsu, no confirm needed
+                        const shortStatus = (status.short || '').toLowerCase();
+                        if (shortStatus === 'done' || shortStatus === 'approved') return false;
+                        
+                        if (!clientUser?.email) return false;
+                        
+                        // Check if current user is an assigned approver
+                        const isAssigned = projectApprovals.assignedApprovers?.some(
+                            email => email.toLowerCase() === clientUser.email.toLowerCase()
+                        );
+                        if (!isAssigned) return false;
+                        
+                        // Check what approvals are recorded for this specific shot
+                        const shotApprovals = projectApprovals.approvals?.[shot.id] || [];
+                        
+                        // Has current user already approved this shot?
+                        const alreadyApproved = shotApprovals.some(
+                            email => email.toLowerCase() === clientUser.email.toLowerCase()
+                        );
+                        if (alreadyApproved) return false;
+                        
+                        // Have other people approved this shot?
+                        const otherPeopleApproved = shotApprovals.length > 0;
+                        return otherPeopleApproved;
+                    })();
+
                     return (
                         <button
                             key={shot.id}
-                            className={`filmstrip-card ${isActive ? 'active' : ''} ${selectedShots.includes(shot.id) ? 'selected-for-download' : ''}`}
+                            className={`filmstrip-card ${isActive ? 'active' : ''} ${isAwaitingCurrentUserConfirm ? 'awaiting-confirm' : ''} ${selectedShots.includes(shot.id) ? 'selected-for-download' : ''}`}
                             onClick={(e) => {
                                 if (e.ctrlKey || e.metaKey) {
                                     e.preventDefault();
@@ -1723,7 +1830,11 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
                                         <CheckCircle size={12} />
                                     </div>
                                 )}
-                                {!readStatus[shot.id] && <span className="pl-new-badge">NEW</span>}
+                                {isAwaitingCurrentUserConfirm ? (
+                                    <span className="pl-confirm-badge">AWAITING CONFIRM</span>
+                                ) : (
+                                    !readStatus[shot.id] && <span className="pl-new-badge">NEW</span>
+                                )}
                                 {shot.thumbnail_url ? (
                                     <Image src={shot.thumbnail_url} alt={shot.entity_name} fill sizes="200px" className="filmstrip-thumb-img" />
                                 ) : (
