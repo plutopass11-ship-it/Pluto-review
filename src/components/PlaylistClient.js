@@ -1718,6 +1718,11 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
                             style={{ '--status-color': statusColor }}
                         >
                             <div className="filmstrip-thumb">
+                                {selectedShots.includes(shot.id) && (
+                                    <div className="selected-checkmark-overlay">
+                                        <CheckCircle size={12} />
+                                    </div>
+                                )}
                                 {!readStatus[shot.id] && <span className="pl-new-badge">NEW</span>}
                                 {shot.thumbnail_url ? (
                                     <Image src={shot.thumbnail_url} alt={shot.entity_name} fill sizes="200px" className="filmstrip-thumb-img" />

@@ -243,6 +243,11 @@ export default function ProjectClient({ tasks, projectName, projectId, isClientV
                                         }}
                                     >
                                         <div className="thumbnail-container">
+                                            {selectedShots.includes(shot.id) && (
+                                                <div className="selected-checkmark-overlay">
+                                                    <CheckCircle size={14} />
+                                                </div>
+                                            )}
                                             {shot.thumbnail_url ? (
                                                 <Image
                                                     src={shot.thumbnail_url}
@@ -383,7 +388,7 @@ export default function ProjectClient({ tasks, projectName, projectId, isClientV
             </header>
 
             <div className="sequences-container">
-                {filteredTasks.length === 0 && (
+                {(filteredReviewTasks.length === 0 && (!showFinalDeliveries || filteredFinalTasks.length === 0)) && (
                     <EmptyState 
                         icon="search" 
                         title="No Shots Found" 
