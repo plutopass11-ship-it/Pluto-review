@@ -4,14 +4,15 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Search, Filter, Play, CheckCircle, EyeOff, ChevronDown, Share2, MessageSquare, Layers } from 'lucide-react';
+import { Search, Filter, Play, CheckCircle, EyeOff, ChevronDown, Share2, MessageSquare, Layers, Download } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import EmptyState from './shared/EmptyState';
 import './ProjectClient.css';
 
-export default function ProjectClient({ tasks, projectName, projectId, isClientView = false }) {
+export default function ProjectClient({ tasks, projectName, projectId, isClientView = false, showFinalDeliveries = false }) {
     const router = useRouter();
     const [openedShots, setOpenedShots] = useState([]);
+    const [selectedShots, setSelectedShots] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
     const [statusFilters, setStatusFilters] = useState([{ label: 'All', value: 'all' }]);
@@ -104,21 +105,50 @@ export default function ProjectClient({ tasks, projectName, projectId, isClientV
         localStorage.setItem('opened_shots', JSON.stringify(newOpened));
     };
 
-    // Filter out "todo" status shots entirely
-    const baseTasks = tasks ? tasks.filter(t => {
+    const handleBatchDownload = async () => {
+        const shotsToDownload = tasks.filter(t => selectedShots.includes(t.id));
+        toast.success(`Starting download of ${shotsToDownload.length} files...`);
+        for (const shot of shotsToDownload) {
+            if (shot.video_url) {
+                try {
+                    const a = document.createElement('a');
+                    a.href = shot.video_url + '&download=true'; 
+                    a.download = `${shot.entity_name}.mp4`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    await new Promise(r => setTimeout(r, 500));
+                } catch (e) {
+                    console.error("Download failed for", shot.entity_name);
+                }
+            }
+        }
+        setSelectedShots([]);
+    };
+
+    // Separate standard review tasks from Final Delivery tasks
+    const baseReviewTasks = tasks ? tasks.filter(t => {
+        const isFinalDelivery = (t.task_type_name || '').toLowerCase() === 'final delivery';
+        if (isFinalDelivery) return false;
         const s = (t.task_status_short || '').toLowerCase();
         return s !== 'todo';
     }) : [];
 
+    const finalDeliveryTasks = tasks ? tasks.filter(t => {
+        const isFinalDelivery = (t.task_type_name || '').toLowerCase() === 'final delivery';
+        const s = (t.task_status_short || '').toLowerCase();
+        return isFinalDelivery && (s === 'done' || s === 'approved');
+    }) : [];
+
     // Get unique sequence names for playlist dropdown
     const sequenceNames = useMemo(() => {
-        const names = [...new Set(baseTasks.map(t => t.sequence_name || 'Uncategorized'))];
+        const names = [...new Set(baseReviewTasks.map(t => t.sequence_name || 'Uncategorized'))];
         return names.sort();
-    }, [baseTasks]);
+    }, [baseReviewTasks]);
 
     // Apply search and status filter
-    const filteredTasks = useMemo(() => {
-        return baseTasks.filter(t => {
+    const filteredReviewTasks = useMemo(() => {
+        return baseReviewTasks.filter(t => {
             // Search filter: match shot name or sequence name
             if (searchQuery.trim()) {
                 const q = searchQuery.toLowerCase();
@@ -133,7 +163,20 @@ export default function ProjectClient({ tasks, projectName, projectId, isClientV
             }
             return true;
         });
-    }, [baseTasks, searchQuery, statusFilter]);
+    }, [baseReviewTasks, searchQuery, statusFilter]);
+
+    // Apply search filter to final delivery tasks
+    const filteredFinalTasks = useMemo(() => {
+        return finalDeliveryTasks.filter(t => {
+            if (searchQuery.trim()) {
+                const q = searchQuery.toLowerCase();
+                const nameMatch = (t.entity_name || '').toLowerCase().includes(q);
+                const seqMatch = (t.sequence_name || '').toLowerCase().includes(q);
+                if (!nameMatch && !seqMatch) return false;
+            }
+            return true;
+        });
+    }, [finalDeliveryTasks, searchQuery]);
 
     // Status-based full card background color
     const getCardClass = (statusShort) => {
@@ -154,8 +197,8 @@ export default function ProjectClient({ tasks, projectName, projectId, isClientV
         return 'badge-grey';
     };
 
-    const unreadTasks = filteredTasks.filter(t => !openedShots.includes(t.id));
-    const readTasks = filteredTasks.filter(t => openedShots.includes(t.id));
+    const unreadTasks = filteredReviewTasks.filter(t => !openedShots.includes(t.id));
+    const readTasks = filteredReviewTasks.filter(t => openedShots.includes(t.id));
 
     const groupTasksBySequence = (taskList) => {
         return taskList.reduce((acc, task) => {
@@ -189,8 +232,15 @@ export default function ProjectClient({ tasks, projectName, projectId, isClientV
                                     <Link
                                         href={isClientView ? `/shared/${projectId}/playlist?seq=${encodeURIComponent(shot.sequence_name || '')}&shotId=${shot.id}` : `/project/${projectId}/playlist?seq=${encodeURIComponent(shot.sequence_name || '')}&shotId=${shot.id}`}
                                         key={shot.id}
-                                        className={`shot-card ${getCardClass(statusShort)}`}
-                                        onClick={() => markAsOpened(shot.id)}
+                                        className={`shot-card ${getCardClass(statusShort)} ${selectedShots.includes(shot.id) ? 'selected-for-download' : ''}`}
+                                        onClick={(e) => {
+                                            if (e.ctrlKey || e.metaKey) {
+                                                e.preventDefault();
+                                                setSelectedShots(prev => prev.includes(shot.id) ? prev.filter(id => id !== shot.id) : [...prev, shot.id]);
+                                            } else {
+                                                markAsOpened(shot.id);
+                                            }
+                                        }}
                                     >
                                         <div className="thumbnail-container">
                                             {shot.thumbnail_url ? (
@@ -247,6 +297,17 @@ export default function ProjectClient({ tasks, projectName, projectId, isClientV
 
     return (
         <div className="project-container animate-fade-in">
+            {selectedShots.length > 0 && (
+                <div className="batch-download-bar glass-panel animate-slide-up">
+                    <span className="selected-count">{selectedShots.length} shot{selectedShots.length !== 1 ? 's' : ''} selected</span>
+                    <div className="batch-actions">
+                        <button className="glass-button" onClick={() => setSelectedShots([])}>Cancel</button>
+                        <button className="glass-button" style={{ color: '#10b981', borderColor: '#10b98155' }} onClick={handleBatchDownload}>
+                            <Download size={16} /> Download
+                        </button>
+                    </div>
+                </div>
+            )}
             <header className="project-header">
                 {!isClientView && (
                 <div className="breadcrumb">
@@ -335,6 +396,13 @@ export default function ProjectClient({ tasks, projectName, projectId, isClientV
                 {readTasks.length > 0 && unreadTasks.length > 0 && <div className="nav-divider"></div>}
 
                 {renderSection('Reviewed Shots', readTasks, true)}
+
+                {showFinalDeliveries && filteredFinalTasks.length > 0 && (
+                    <>
+                        <div className="nav-divider"></div>
+                        {renderSection('Final Deliveries', filteredFinalTasks, true)}
+                    </>
+                )}
             </div>
         </div>
     );

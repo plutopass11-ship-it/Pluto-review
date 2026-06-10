@@ -68,6 +68,11 @@ export async function GET(request) {
         // Allow the browser to cache the video
         responseHeaders.set('Cache-Control', 'public, max-age=3600');
 
+        const isDownload = searchParams.get('download') === 'true';
+        if (isDownload) {
+            responseHeaders.set('Content-Disposition', `attachment; filename="video_${id}.${ext}"`);
+        }
+
         return new Response(upstream.body, {
             status: upstream.status,
             headers: responseHeaders,

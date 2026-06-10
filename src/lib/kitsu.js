@@ -115,6 +115,13 @@ export async function getClientReviewTaskType() {
   return clientReviewType;
 }
 
+export async function getFinalDeliveryTaskType() {
+  if (!cachedTaskTypes) {
+    cachedTaskTypes = await fetchKitsuData('/data/task-types');
+  }
+  return cachedTaskTypes.find(t => t.name.toLowerCase() === 'final delivery') || null;
+}
+
 export async function getProjectsWithStats() {
   const projects = await getProjects();
   const taskStatuses = await fetchKitsuData('/data/task-status').catch(() => []);
@@ -150,14 +157,22 @@ export async function getProjectsWithStats() {
 
 export async function getClientReviewTasks(projectId) {
   const reviewTaskType = await getClientReviewTaskType();
+  const finalDeliveryTaskType = await getFinalDeliveryTaskType();
   const taskStatuses = await fetchKitsuData('/data/task-status').catch(() => []);
-  const clientTasks = await fetchKitsuData(`/data/tasks?project_id=${projectId}&task_type_id=${reviewTaskType.id}`).catch(() => []);
   
-  if (clientTasks.length === 0) return [];
+  const [clientTasks, finalTasks] = await Promise.all([
+      fetchKitsuData(`/data/tasks?project_id=${projectId}&task_type_id=${reviewTaskType.id}`).catch(() => []),
+      finalDeliveryTaskType ? fetchKitsuData(`/data/tasks?project_id=${projectId}&task_type_id=${finalDeliveryTaskType.id}`).catch(() => []) : Promise.resolve([])
+  ]);
+  
+  const allTasks = [...clientTasks, ...finalTasks];
 
-  const [shotsRes, allPreviews] = await Promise.all([
+  if (allTasks.length === 0) return [];
+
+  const [shotsRes, allPreviews, taskTypes] = await Promise.all([
     fetchKitsuData(`/data/shots?project_id=${projectId}`).catch(() => []),
-    fetchKitsuData(`/data/preview-files?project_id=${projectId}`).catch(() => [])
+    fetchKitsuData(`/data/preview-files?project_id=${projectId}`).catch(() => []),
+    fetchKitsuData('/data/task-types').catch(() => [])
   ]);
 
   const shotMap = {};
@@ -168,6 +183,9 @@ export async function getClientReviewTasks(projectId) {
   const statusMap = {};
   taskStatuses.forEach(s => statusMap[s.id] = { name: s.name, short_name: s.short_name });
 
+  const taskTypeMap = {};
+  taskTypes.forEach(t => taskTypeMap[t.id] = t.name);
+
   const taskPreviewsMap = {};
   allPreviews.forEach(p => {
     if (!taskPreviewsMap[p.task_id]) taskPreviewsMap[p.task_id] = [];
@@ -175,7 +193,7 @@ export async function getClientReviewTasks(projectId) {
   });
   Object.values(taskPreviewsMap).forEach(arr => arr.sort((a, b) => (b.revision || 0) - (a.revision || 0)));
 
-  return clientTasks
+  return allTasks
     .map(task => {
       const shotData = shotMap[task.entity_id] || { name: task.entity_name || 'Unknown', sequenceName: 'Uncategorized' };
       const statusInfo = statusMap[task.task_status_id] || {};
@@ -187,6 +205,7 @@ export async function getClientReviewTasks(projectId) {
         sequence_name: shotData.sequenceName,
         task_status_name: statusInfo.name || 'Unknown',
         task_status_short: statusInfo.short_name || '',
+        task_type_name: taskTypeMap[task.task_type_id] || 'Unknown',
         thumbnail_url: latest ? `/api/proxy-thumbnail?id=${latest.id}` : null,
         video_url: latest ? `/api/proxy-video?id=${latest.id}&ext=${latest.extension || 'mp4'}` : null,
         preview_id: latest?.id || null,

@@ -108,6 +108,7 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
     const [drawColor, setDrawColor] = useState('#ef4444');
     const [hasAnnotation, setHasAnnotation] = useState(false);
     const [queuedAnnotations, setQueuedAnnotations] = useState([]);
+    const [selectedShots, setSelectedShots] = useState([]);
     const isDrawing = useRef(false);
     const lastPoint = useRef(null);
     const canvasRef = useRef(null);
@@ -145,6 +146,27 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
         const short = (shot.task_status_short || '').toLowerCase();
         return short === 'done' || short === 'approved';
     }, [shotStatuses]);
+
+    const handleBatchDownload = async () => {
+        const shotsToDownload = visibleSeqShots.filter(s => selectedShots.includes(s.id));
+        toast.success(`Starting download of ${shotsToDownload.length} files...`);
+        for (const shot of shotsToDownload) {
+            if (shot.video_url) {
+                try {
+                    const a = document.createElement('a');
+                    a.href = shot.video_url + '&download=true'; 
+                    a.download = `${shot.entity_name}.mp4`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    await new Promise(r => setTimeout(r, 500));
+                } catch (e) {
+                    console.error("Download failed for", shot.entity_name);
+                }
+            }
+        }
+        setSelectedShots([]);
+    };
 
     // Filmstrip shows only non-done shots when hideDone is active
     const visibleSeqShots = useMemo(() => {
@@ -1683,8 +1705,16 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
                     return (
                         <button
                             key={shot.id}
-                            className={`filmstrip-card ${isActive ? 'active' : ''}`}
-                            onClick={() => jumpToShot(realIndex)}
+                            className={`filmstrip-card ${isActive ? 'active' : ''} ${selectedShots.includes(shot.id) ? 'selected-for-download' : ''}`}
+                            onClick={(e) => {
+                                if (e.ctrlKey || e.metaKey) {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setSelectedShots(prev => prev.includes(shot.id) ? prev.filter(id => id !== shot.id) : [...prev, shot.id]);
+                                } else {
+                                    jumpToShot(realIndex);
+                                }
+                            }}
                             style={{ '--status-color': statusColor }}
                         >
                             <div className="filmstrip-thumb">
@@ -1707,6 +1737,17 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
                     );
                 })}
             </div>
+            {selectedShots.length > 0 && (
+                <div className="batch-download-bar glass-panel animate-slide-up" style={{ bottom: '120px' }}>
+                    <span className="selected-count">{selectedShots.length} shot{selectedShots.length !== 1 ? 's' : ''} selected</span>
+                    <div className="batch-actions">
+                        <button className="glass-button" onClick={() => setSelectedShots([])}>Cancel</button>
+                        <button className="glass-button" style={{ color: '#10b981', borderColor: '#10b98155' }} onClick={handleBatchDownload}>
+                            <Download size={16} /> Download
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

@@ -586,6 +586,19 @@ export default function DashboardClient({ projects, serverError }) {
                                                 </button>
                                                 <span className={isMultiple ? 'toggle-label active' : 'toggle-label'}>Multiple Approvers</span>
                                             </div>
+                                            <div className="approval-toggle" style={{ marginTop: '0.75rem' }}>
+                                                <span className={!settings.showFinalDeliveries ? 'toggle-label active' : 'toggle-label'}>Hide Final Deliveries</span>
+                                                <button
+                                                    className={`toggle-switch ${settings.showFinalDeliveries ? 'on' : ''}`}
+                                                    onClick={() => handleProjectSettingChange(project.id, {
+                                                        showFinalDeliveries: !settings.showFinalDeliveries
+                                                    })}
+                                                    aria-label="Toggle final deliveries section"
+                                                >
+                                                    <span className="toggle-knob" />
+                                                </button>
+                                                <span className={settings.showFinalDeliveries ? 'toggle-label active' : 'toggle-label'}>Show Final Deliveries</span>
+                                            </div>
                                         </div>
 
                                         {isMultiple && approvedUsers.length > 0 && (

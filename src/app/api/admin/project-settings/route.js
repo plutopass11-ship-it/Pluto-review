@@ -50,17 +50,18 @@ export async function POST(request) {
     }
 
     try {
-        const { projectId, approvalMode, assignedApprovers } = await request.json();
+        const { projectId, approvalMode, assignedApprovers, showFinalDeliveries } = await request.json();
 
         if (!projectId) {
             return Response.json({ error: 'Missing projectId' }, { status: 400 });
         }
 
         const allSettings = await getProjectSettings();
-        const current = allSettings[projectId] || { approvalMode: 'single', assignedApprovers: [] };
+        const current = allSettings[projectId] || { approvalMode: 'single', assignedApprovers: [], showFinalDeliveries: false };
 
         if (approvalMode !== undefined) current.approvalMode = approvalMode;
         if (assignedApprovers !== undefined) current.assignedApprovers = assignedApprovers;
+        if (showFinalDeliveries !== undefined) current.showFinalDeliveries = showFinalDeliveries;
 
         allSettings[projectId] = current;
         await saveProjectSettings(allSettings);
