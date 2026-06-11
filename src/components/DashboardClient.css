@@ -716,3 +716,212 @@
 .approver-checkbox:hover {
     color: var(--text-primary);
 }
+
+/* ── Download Activity Section ── */
+.downloads-section {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 24px;
+    max-height: 500px;
+    overflow: hidden;
+}
+
+.downloads-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--glass-border);
+}
+
+.downloads-title-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: var(--text-primary);
+}
+
+.downloads-title-row h2 {
+    font-size: 1.2rem;
+    font-weight: 600;
+}
+
+.downloads-filter {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-secondary);
+}
+
+.log-project-select {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--glass-border);
+    color: var(--text-primary);
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    outline: none;
+    cursor: pointer;
+}
+
+.log-project-select:focus {
+    border-color: var(--accent-cyan);
+}
+
+.log-project-select option {
+    background: var(--bg-color);
+    color: var(--text-primary);
+}
+
+.logs-table-wrapper {
+    flex: 1;
+    overflow-y: auto;
+    border-radius: 8px;
+    border: 1px solid var(--glass-border);
+    background: rgba(0, 0, 0, 0.2);
+}
+
+/* Custom Scrollbar for the table wrapper */
+.logs-table-wrapper::-webkit-scrollbar {
+    width: 6px;
+}
+.logs-table-wrapper::-webkit-scrollbar-track {
+    background: transparent;
+}
+.logs-table-wrapper::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+}
+.logs-table-wrapper::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.logs-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+    font-size: 0.85rem;
+}
+
+.logs-table th {
+    position: sticky;
+    top: 0;
+    background: rgba(20, 24, 32, 0.95);
+    backdrop-filter: blur(8px);
+    color: var(--text-muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.5px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--glass-border);
+    z-index: 1;
+}
+
+.logs-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+    color: var(--text-secondary);
+    vertical-align: middle;
+}
+
+.logs-table tr:last-child td {
+    border-bottom: none;
+}
+
+.logs-table tr:hover td {
+    background: rgba(255, 255, 255, 0.02);
+    color: var(--text-primary);
+}
+
+.log-time {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+}
+
+.log-project {
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.log-sequence {
+    color: var(--text-muted);
+}
+
+.log-type-badge {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.log-type-badge.type-video {
+    background: rgba(6, 182, 212, 0.1);
+    color: var(--accent-cyan);
+    border: 1px solid rgba(6, 182, 212, 0.2);
+}
+
+.log-type-badge.type-sequence-zip {
+    background: rgba(139, 92, 246, 0.1);
+    color: var(--accent-purple);
+    border: 1px solid rgba(139, 92, 246, 0.2);
+}
+
+.log-device {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.log-browser {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.log-location {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.log-location-unknown {
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+.logs-empty {
+    text-align: center;
+    padding: 48px 24px;
+    color: var(--text-secondary);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: center;
+}
+
+.logs-empty p {
+    font-size: 1rem;
+    font-weight: 500;
+}
+
+.logs-empty-hint {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.logs-loading {
+    padding: 32px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
