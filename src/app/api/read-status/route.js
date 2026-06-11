@@ -2,6 +2,8 @@ import fs from 'fs/promises';
 import { join } from 'path';
 import { getSession } from '@/lib/session';
 
+export const dynamic = 'force-dynamic';
+
 const DB_FILE = join(process.cwd(), 'data', 'read-status.json');
 
 async function getReadStatus() {
@@ -26,11 +28,19 @@ export async function GET(request) {
   try {
     const session = await getSession();
     if (!session) {
-      return Response.json({});
+      return Response.json({}, {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0'
+        }
+      });
     }
 
     const readStatus = await getReadStatus();
-    return Response.json(readStatus[session.email] || {});
+    return Response.json(readStatus[session.email] || {}, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0'
+      }
+    });
   } catch (error) {
     return Response.json({ error: 'Failed to read status' }, { status: 500 });
   }

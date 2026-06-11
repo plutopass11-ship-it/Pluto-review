@@ -242,7 +242,7 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
         } catch {}
 
         // Fetch read status
-        fetch('/api/read-status')
+        fetch('/api/read-status', { cache: 'no-store' })
             .then(r => {
                 if (!r.ok) throw new Error(`read-status returned ${r.status}`);
                 return r.json();
@@ -293,6 +293,7 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
 
     // Mark shot as read helper
     const markAsRead = (shotId) => {
+        if (!readStatusLoaded) return;
         if (readStatus[shotId]) return;
         setReadStatus(prev => ({ ...prev, [shotId]: true }));
         fetch('/api/read-status', {
@@ -311,13 +312,16 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
         }).catch(() => {});
     };
 
+    // Mark current shot as read when status list has loaded
+    useEffect(() => {
+        if (!currentShot || !readStatusLoaded) return;
+        markAsRead(currentShot.id);
+    }, [currentShot?.id, readStatusLoaded]);
+
     // Mark current shot as opened
     // Load comments + versions on shot change
     useEffect(() => {
         if (!currentShot) return;
-
-        // Mark as read
-        markAsRead(currentShot.id);
 
         setCurrentVideoUrl(currentShot.video_url || '');
 
