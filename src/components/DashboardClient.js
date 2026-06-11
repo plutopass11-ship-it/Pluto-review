@@ -479,8 +479,11 @@ export default function DashboardClient({ projects, serverError }) {
                                     </>
                                 )}
 
-                                {/* Approved Users */}
-                                {approvedUsers.length > 0 && (
+                                {/* Resolved Users Dock */}
+                                {(approvedUsers.length > 0 || rejectedUsers.length > 0) && (
+                                    <div className="resolved-requests-dock">
+                                        {/* Approved Users */}
+                                        {approvedUsers.length > 0 && (
                                     <>
                                         <h3 className="user-group-label">Approved</h3>
                                         {approvedUsers.map(user => (
@@ -545,6 +548,8 @@ export default function DashboardClient({ projects, serverError }) {
                                             </div>
                                         ))}
                                     </>
+                                        )}
+                                    </div>
                                 )}
 
                                 {adminUsers.length === 0 && (

@@ -599,6 +599,31 @@
     transform: scale(1.05);
 }
 
+.resolved-requests-dock {
+    max-height: 400px;
+    overflow-y: auto;
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.15);
+    border: 1px solid var(--glass-border);
+    padding: 16px;
+    margin-top: 12px;
+}
+
+/* Custom scrollbar for the dock */
+.resolved-requests-dock::-webkit-scrollbar {
+    width: 6px;
+}
+.resolved-requests-dock::-webkit-scrollbar-track {
+    background: transparent;
+}
+.resolved-requests-dock::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+}
+.resolved-requests-dock::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
 .user-action-btn.reject {
     color: var(--accent-red);
     border-color: rgba(239, 68, 68, 0.2);
