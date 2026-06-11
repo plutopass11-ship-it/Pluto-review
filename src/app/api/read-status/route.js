@@ -27,6 +27,7 @@ async function saveReadStatus(readStatus) {
 export async function GET(request) {
   try {
     const session = await getSession();
+    console.log('[read-status GET] session:', session ? session.email : 'NULL');
     if (!session) {
       return Response.json({}, {
         headers: {
@@ -36,12 +37,15 @@ export async function GET(request) {
     }
 
     const readStatus = await getReadStatus();
-    return Response.json(readStatus[session.email] || {}, {
+    const userStatus = readStatus[session.email] || {};
+    console.log('[read-status GET] keys for', session.email, ':', Object.keys(userStatus).length);
+    return Response.json(userStatus, {
       headers: {
         'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0'
       }
     });
   } catch (error) {
+    console.error('[read-status GET] error:', error);
     return Response.json({ error: 'Failed to read status' }, { status: 500 });
   }
 }
@@ -49,6 +53,7 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const session = await getSession();
+    console.log('[read-status POST] session:', session ? session.email : 'NULL');
     if (!session) {
       return Response.json({ error: 'Not authenticated' }, { status: 401 });
     }
@@ -58,13 +63,16 @@ export async function POST(request) {
       return Response.json({ error: 'shotId is required' }, { status: 400 });
     }
 
+    console.log('[read-status POST] marking', shotId, 'as read for', session.email);
     const readStatus = await getReadStatus();
     if (!readStatus[session.email]) readStatus[session.email] = {};
     readStatus[session.email][shotId] = true;
 
     await saveReadStatus(readStatus);
+    console.log('[read-status POST] saved successfully');
     return Response.json({ success: true });
   } catch (error) {
+    console.error('[read-status POST] error:', error);
     return Response.json({ error: 'Failed to update read status' }, { status: 500 });
   }
 }
