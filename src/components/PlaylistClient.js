@@ -1419,7 +1419,7 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
                                     muted={isMuted}
                                 />
                                 <div className="playlist-watermark">
-                                    <span>{currentUser}</span>
+                                    <span>Preview for {currentUser}</span>
                                 </div>
                                 {/* Annotation canvas */}
                                 {annotationMode && (

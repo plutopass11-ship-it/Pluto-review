@@ -650,7 +650,7 @@ export default function ReviewClient({ taskId, taskData, currentUser = 'Current 
                             muted={isMuted}
                         />
                         <div className="watermark-overlay">
-                            <span>{currentUser}</span>
+                            <span>Preview for {currentUser}</span>
                             <span className="watermark-date">{watermarkDate}</span>
                         </div>
                         <canvas
