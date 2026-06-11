@@ -1155,7 +1155,7 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
         const ext = shot.video_url?.match(/ext=([a-zA-Z0-9]+)/)?.[1] || 'mp4';
         const a = document.createElement('a');
         const downloadName = `${activeSequence.name || 'seq'}-${shot.entity_name}`;
-        a.href = `/api/download-watermarked?id=${shot.preview_id}&name=${encodeURIComponent(downloadName)}&user=${encodeURIComponent(currentUser)}&ext=${ext}&projectId=${encodeURIComponent(projectId)}&projectName=${encodeURIComponent(projectName)}&sequenceName=${encodeURIComponent(activeSequence.name || '')}&type=shot`;
+        a.href = `/api/download-watermarked?id=${shot.preview_id}&name=${encodeURIComponent(downloadName)}&user=${encodeURIComponent(clientUser?.name || currentUser)}&ext=${ext}&projectId=${encodeURIComponent(projectId)}&projectName=${encodeURIComponent(projectName)}&sequenceName=${encodeURIComponent(activeSequence.name || '')}&type=shot`;
         a.download = '';
         a.click();
     };
@@ -1295,7 +1295,7 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
                         <span>Versions</span>
                     </button>
                     <a
-                        href={`/api/download-watermarked?id=${currentShot?.preview_id || ''}&name=${encodeURIComponent(`${activeSequence.name || 'seq'}-${currentShot?.entity_name || 'shot'}`)}&user=${encodeURIComponent(currentUser)}&ext=${currentShot?.video_url?.match(/ext=([a-zA-Z0-9]+)/)?.[1] || 'mp4'}&projectId=${encodeURIComponent(projectId)}&projectName=${encodeURIComponent(projectName)}&sequenceName=${encodeURIComponent(activeSequence.name || '')}&type=shot`}
+                        href={`/api/download-watermarked?id=${currentShot?.preview_id || ''}&name=${encodeURIComponent(`${activeSequence.name || 'seq'}-${currentShot?.entity_name || 'shot'}`)}&user=${encodeURIComponent(clientUser?.name || currentUser)}&ext=${currentShot?.video_url?.match(/ext=([a-zA-Z0-9]+)/)?.[1] || 'mp4'}&projectId=${encodeURIComponent(projectId)}&projectName=${encodeURIComponent(projectName)}&sequenceName=${encodeURIComponent(activeSequence.name || '')}&type=shot`}
                         download
                         className={`playlist-download-btn ${isZipping ? 'disabled' : ''}`}
                         title="Download Current Shot"
@@ -1419,7 +1419,7 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
                                     muted={isMuted}
                                 />
                                 <div className="playlist-watermark">
-                                    <span>Preview for {currentUser}</span>
+                                    <span>Preview for {clientUser?.name || currentUser}</span>
                                 </div>
                                 {/* Annotation canvas */}
                                 {annotationMode && (

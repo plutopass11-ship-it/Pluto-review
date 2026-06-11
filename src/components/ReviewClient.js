@@ -70,6 +70,7 @@ export default function ReviewClient({ taskId, taskData, currentUser = 'Current 
     const [newComment, setNewComment] = useState('');
     const [commentSubmitting, setCommentSubmitting] = useState(false);
     const [watermarkDate, setWatermarkDate] = useState('');
+    const [clientUser, setClientUser] = useState(null);
 
     // Mark shot as read on mount
     useEffect(() => {
@@ -92,6 +93,10 @@ export default function ReviewClient({ taskId, taskData, currentUser = 'Current 
 
     useEffect(() => {
         setWatermarkDate(formatUtcDate(new Date()));
+        try {
+            const stored = sessionStorage.getItem('parallax_user');
+            if (stored) setClientUser(JSON.parse(stored));
+        } catch {}
     }, []);
 
     // Reload video when version changes
@@ -596,7 +601,7 @@ export default function ReviewClient({ taskId, taskData, currentUser = 'Current 
                         </div>
                     )}
                     <a
-                        href={`/api/download-watermarked?id=${selectedVersion?.previewId || selectedVersion?.id || ''}&name=${encodeURIComponent(taskData?.entity_name || 'shot')}&user=${encodeURIComponent(currentUser)}`}
+                        href={`/api/download-watermarked?id=${selectedVersion?.previewId || selectedVersion?.id || ''}&name=${encodeURIComponent(taskData?.entity_name || 'shot')}&user=${encodeURIComponent(clientUser?.name || currentUser)}`}
                         download
                         className="glass-button btn-purple download-shot-btn"
                     >
@@ -650,7 +655,7 @@ export default function ReviewClient({ taskId, taskData, currentUser = 'Current 
                             muted={isMuted}
                         />
                         <div className="watermark-overlay">
-                            <span>Preview for {currentUser}</span>
+                            <span>Preview for {clientUser?.name || currentUser}</span>
                             <span className="watermark-date">{watermarkDate}</span>
                         </div>
                         <canvas
