@@ -193,7 +193,7 @@ export async function getClientReviewTasks(projectId) {
   });
   Object.values(taskPreviewsMap).forEach(arr => arr.sort((a, b) => (b.revision || 0) - (a.revision || 0)));
 
-  return allTasks
+  const mapped = allTasks
     .map(task => {
       const shotData = shotMap[task.entity_id] || { name: task.entity_name || 'Unknown', sequenceName: 'Uncategorized' };
       const statusInfo = statusMap[task.task_status_id] || {};
@@ -222,6 +222,23 @@ export async function getClientReviewTasks(projectId) {
       const allowedNames = ['retake', 'waiting for approval', 'done', 'approved'];
       return allowedShorts.includes(shortStatus) || allowedNames.includes(status);
     });
+
+  // Deduplicate by entity_id (shot) — prefer Client Review over Final Delivery
+  const seen = new Map();
+  for (const item of mapped) {
+    const existing = seen.get(item.entity_id);
+    if (!existing) {
+      seen.set(item.entity_id, item);
+    } else {
+      // Keep the Client Review task, replace only if current is Client Review and existing is not
+      const isClientReview = reviewTaskType && item.task_type_id === reviewTaskType.id;
+      const existingIsClientReview = reviewTaskType && existing.task_type_id === reviewTaskType.id;
+      if (isClientReview && !existingIsClientReview) {
+        seen.set(item.entity_id, item);
+      }
+    }
+  }
+  return Array.from(seen.values());
 }
 
 // Keep getPlaylistData for compatibility if used elsewhere, aliasing to getClientReviewTasks

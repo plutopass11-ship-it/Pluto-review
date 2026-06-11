@@ -14,6 +14,11 @@ async function getReadStatus() {
     if (error.code === 'ENOENT') {
       return {};
     }
+    // If the JSON is corrupted, log it and return empty (will be overwritten on next save)
+    if (error instanceof SyntaxError) {
+      console.error('[read-status] Corrupted JSON file, resetting:', error.message);
+      return {};
+    }
     throw error;
   }
 }
