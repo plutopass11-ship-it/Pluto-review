@@ -223,18 +223,18 @@ export async function getClientReviewTasks(projectId) {
       return allowedShorts.includes(shortStatus) || allowedNames.includes(status);
     });
 
-  // Deduplicate by entity_id (shot) — prefer Client Review over Final Delivery
+  // Deduplicate by entity_id AND task_type_id (shot + task type)
+  // This prevents multiple "Client Review" tasks for the same shot, while still keeping the "Final Delivery" task intact.
   const seen = new Map();
   for (const item of mapped) {
-    const existing = seen.get(item.entity_id);
-    if (!existing) {
-      seen.set(item.entity_id, item);
+    const key = `${item.entity_id}_${item.task_type_id}`;
+    if (!seen.has(key)) {
+      seen.set(key, item);
     } else {
-      // Keep the Client Review task, replace only if current is Client Review and existing is not
-      const isClientReview = reviewTaskType && item.task_type_id === reviewTaskType.id;
-      const existingIsClientReview = reviewTaskType && existing.task_type_id === reviewTaskType.id;
-      if (isClientReview && !existingIsClientReview) {
-        seen.set(item.entity_id, item);
+      // If there are duplicate tasks of the same type for the same shot, prefer the one with more previews
+      const existing = seen.get(key);
+      if (item.version_count > existing.version_count) {
+        seen.set(key, item);
       }
     }
   }
