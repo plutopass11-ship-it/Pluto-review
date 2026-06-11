@@ -96,6 +96,7 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
     const [taskStatuses, setTaskStatuses] = useState([]);
     const [clientUser, setClientUser] = useState(null);
     const [readStatus, setReadStatus] = useState({});
+    const [readStatusLoaded, setReadStatusLoaded] = useState(false);
     const [approvalInfo, setApprovalInfo] = useState(null);
     const [projectApprovals, setProjectApprovals] = useState(null);
     const [hasPlayedOnce, setHasPlayedOnce] = useState(false);
@@ -242,9 +243,18 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
 
         // Fetch read status
         fetch('/api/read-status')
-            .then(r => r.json())
-            .then(data => setReadStatus(data))
-            .catch(() => {});
+            .then(r => {
+                if (!r.ok) throw new Error(`read-status returned ${r.status}`);
+                return r.json();
+            })
+            .then(data => {
+                // Only set if it's a valid read-status object (not an error response)
+                if (data && typeof data === 'object' && !data.error) {
+                    setReadStatus(data);
+                }
+                setReadStatusLoaded(true);
+            })
+            .catch(() => { setReadStatusLoaded(true); });
 
         // Global mouseup to stop timeline drag even if cursor leaves the element
         const globalMouseUp = () => setIsDraggingTimeline(false);
@@ -289,6 +299,15 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ shotId })
+        }).then(r => {
+            if (!r.ok) {
+                // Revert local state if save failed (e.g. no session)
+                setReadStatus(prev => {
+                    const next = { ...prev };
+                    delete next[shotId];
+                    return next;
+                });
+            }
         }).catch(() => {});
     };
 
@@ -1833,7 +1852,7 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
                                 {isAwaitingCurrentUserConfirm ? (
                                     <span className="pl-confirm-badge">AWAITING CONFIRM</span>
                                 ) : (
-                                    !readStatus[shot.id] && <span className="pl-new-badge">NEW</span>
+                                    readStatusLoaded && !readStatus[shot.id] && <span className="pl-new-badge">NEW</span>
                                 )}
                                 {shot.thumbnail_url ? (
                                     <Image src={shot.thumbnail_url} alt={shot.entity_name} fill sizes="200px" className="filmstrip-thumb-img" />
