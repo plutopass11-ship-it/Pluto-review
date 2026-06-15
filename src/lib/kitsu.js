@@ -223,17 +223,39 @@ export async function getClientReviewTasks(projectId) {
       return allowedShorts.includes(shortStatus) || allowedNames.includes(status);
     });
 
-  // Deduplicate by entity_id AND task_type_id (shot + task type)
-  // This prevents multiple "Client Review" tasks for the same shot, while still keeping the "Final Delivery" task intact.
+  // Deduplicate by entity_id (shot ID) only
+  // This prevents multiple tasks (e.g. Client Review and Final Delivery) for the same shot appearing as duplicate cards in the playlist.
   const seen = new Map();
   for (const item of mapped) {
-    const key = `${item.entity_id}_${item.task_type_id}`;
+    const key = item.entity_id;
     if (!seen.has(key)) {
       seen.set(key, item);
     } else {
-      // If there are duplicate tasks of the same type for the same shot, prefer the one with more previews
       const existing = seen.get(key);
-      if (item.version_count > existing.version_count) {
+      
+      const itemHasVideo = !!item.preview_id;
+      const existingHasVideo = !!existing.preview_id;
+      
+      let keepItem = false;
+      if (itemHasVideo && !existingHasVideo) {
+        keepItem = true;
+      } else if (!itemHasVideo && existingHasVideo) {
+        keepItem = false;
+      } else {
+        // Both have video, or both don't. Prefer the one with more previews.
+        if (item.version_count > existing.version_count) {
+          keepItem = true;
+        } else if (item.version_count === existing.version_count) {
+          // Prefer Client Review over Final Delivery, because Client Review holds the comment thread.
+          const itemIsClientReview = (item.task_type_name || '').toLowerCase().includes('client review');
+          const existingIsClientReview = (existing.task_type_name || '').toLowerCase().includes('client review');
+          if (itemIsClientReview && !existingIsClientReview) {
+            keepItem = true;
+          }
+        }
+      }
+      
+      if (keepItem) {
         seen.set(key, item);
       }
     }

@@ -43,7 +43,7 @@ export async function POST(request) {
         const body = await request.json();
         const { projectId, projectName, sequenceName, shots, type } = body;
         
-        if (!projectId || !sequenceName || !shots || !Array.isArray(shots)) {
+        if (!projectId || !shots || !Array.isArray(shots)) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
 
@@ -51,14 +51,26 @@ export async function POST(request) {
         const downloadableShots = shots.filter(s => s.preview_id && s.video_url);
         
         if (downloadableShots.length === 0) {
-            return NextResponse.json({ error: 'No downloadable shots in this sequence' }, { status: 400 });
+            const errorMsg = type === 'batch' 
+                ? 'None of the selected shots have downloadable previews'
+                : 'No downloadable shots in this sequence';
+            return NextResponse.json({ error: errorMsg }, { status: 400 });
         }
 
         await ensureTmpDir();
         
         const token = randomUUID();
         const dateStr = new Date().toISOString().slice(0, 10);
-        const zipName = `${sequenceName}-${dateStr}.zip`;
+        
+        let zipName;
+        if (type === 'batch') {
+            const cleanProjectName = (projectName || 'project').replace(/[^a-zA-Z0-9-_]/g, '_') || 'project';
+            zipName = `${cleanProjectName}-${dateStr}.zip`;
+        } else {
+            const cleanSeqName = (sequenceName || 'seq').replace(/[^a-zA-Z0-9-_]/g, '_') || 'seq';
+            zipName = `${cleanSeqName}-${dateStr}.zip`;
+        }
+        
         const filePath = join(TMP_DIR, `${token}.zip`);
         
         // Create ZIP file
@@ -92,7 +104,10 @@ export async function POST(request) {
                     
                     // Get the video buffer
                     const buffer = Buffer.from(await res.arrayBuffer());
-                    const fileName = `${sequenceName}-${shot.entity_name}.${ext}`;
+                    const seq = shot.sequence_name || sequenceName || 'seq';
+                    const cleanSeq = seq.replace(/[^a-zA-Z0-9-_]/g, '_') || 'seq';
+                    const cleanShotName = (shot.entity_name || 'shot').replace(/[^a-zA-Z0-9-_]/g, '_') || 'shot';
+                    const fileName = `${cleanSeq}-${cleanShotName}.${ext}`;
                     
                     archive.append(buffer, { name: fileName });
                 } catch (err) {

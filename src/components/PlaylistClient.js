@@ -151,23 +151,40 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
 
     const handleBatchDownload = async () => {
         const shotsToDownload = visibleSeqShots.filter(s => selectedShots.includes(s.id));
-        toast.success(`Starting download of ${shotsToDownload.length} files...`);
-        for (const shot of shotsToDownload) {
-            if (shot.video_url) {
-                try {
-                    const a = document.createElement('a');
-                    a.href = shot.video_url + '&download=true'; 
-                    a.download = `${shot.entity_name}.mp4`;
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    await new Promise(r => setTimeout(r, 500));
-                } catch (e) {
-                    console.error("Download failed for", shot.entity_name);
-                }
+        if (shotsToDownload.length === 0) return;
+
+        setIsZipping(true);
+        try {
+            const res = await fetch('/api/download-sequence-zip', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    projectId,
+                    projectName,
+                    sequenceName: activeSequence.name || 'seq',
+                    shots: shotsToDownload,
+                    type: 'batch'
+                }),
+            });
+            
+            if (!res.ok) {
+                const err = await res.json();
+                toast.error(err.error || 'Failed to create ZIP');
+                setIsZipping(false);
+                return;
             }
+            
+            const data = await res.json();
+            
+            // Trigger the download
+            window.location.href = data.downloadUrl;
+            toast.success(`Downloading ${data.shotCount} shots as ZIP`);
+            setSelectedShots([]);
+        } catch (err) {
+            toast.error('Failed to create ZIP');
+        } finally {
+            setIsZipping(false);
         }
-        setSelectedShots([]);
     };
 
     // Filmstrip shows only non-done shots when hideDone is active
@@ -1880,9 +1897,9 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
                 <div className="batch-download-bar glass-panel animate-slide-up" style={{ bottom: '120px' }}>
                     <span className="selected-count">{selectedShots.length} shot{selectedShots.length !== 1 ? 's' : ''} selected</span>
                     <div className="batch-actions">
-                        <button className="glass-button" onClick={() => setSelectedShots([])}>Cancel</button>
-                        <button className="glass-button" style={{ color: '#10b981', borderColor: '#10b98155' }} onClick={handleBatchDownload}>
-                            <Download size={16} /> Download
+                        <button className="glass-button" disabled={isZipping} onClick={() => setSelectedShots([])}>Cancel</button>
+                        <button className="glass-button" style={{ color: '#10b981', borderColor: '#10b98155' }} disabled={isZipping} onClick={handleBatchDownload}>
+                            {isZipping ? <Loader2 size={16} className="spin" /> : <Download size={16} />} {isZipping ? 'Zipping...' : 'Download'}
                         </button>
                     </div>
                 </div>
