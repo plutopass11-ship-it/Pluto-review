@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
-import { Download, Filter, Globe, Monitor, Clock, UserCheck, UserX, Shield, Users, Edit3 } from 'lucide-react';
+import { Download, Filter, Globe, Monitor, Clock, UserCheck, UserX, Shield, Users, Edit3, User } from 'lucide-react';
 import toast from 'react-hot-toast';
 import EmptyState from './shared/EmptyState';
 import './DashboardClient.css';
@@ -378,6 +378,7 @@ export default function DashboardClient({ projects, serverError }) {
                                     <thead>
                                         <tr>
                                             <th>Time</th>
+                                            <th>User</th>
                                             <th>Project</th>
                                             <th>Sequence</th>
                                             <th>Type</th>
@@ -391,6 +392,10 @@ export default function DashboardClient({ projects, serverError }) {
                                                 <td className="log-time">
                                                     <Clock size={12} />
                                                     {formatLogTime(log.timestamp)}
+                                                </td>
+                                                <td className="log-user" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                    <User size={12} />
+                                                    {log.username || 'Unknown User'}
                                                 </td>
                                                 <td className="log-project">{log.projectName}</td>
                                                 <td className="log-sequence">{log.sequenceName || '-'}</td>

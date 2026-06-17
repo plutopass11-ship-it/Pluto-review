@@ -41,7 +41,7 @@ ensureTmpDir().then(() => cleanupOldFiles());
 export async function POST(request) {
     try {
         const body = await request.json();
-        const { projectId, projectName, sequenceName, shots, type } = body;
+        const { projectId, projectName, sequenceName, shots, type, username } = body;
         
         if (!projectId || !shots || !Array.isArray(shots)) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -138,6 +138,7 @@ export async function POST(request) {
             shotName: null,
             type: type || 'sequence',
             fileName: zipName,
+            username: username,
         }).catch(() => {});
 
         return NextResponse.json({ 

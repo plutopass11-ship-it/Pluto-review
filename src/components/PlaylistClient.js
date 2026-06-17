@@ -163,7 +163,8 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
                     projectName,
                     sequenceName: activeSequence.name || 'seq',
                     shots: shotsToDownload,
-                    type: 'batch'
+                    type: 'batch',
+                    username: clientUser?.name || currentUser,
                 }),
             });
             
@@ -1196,6 +1197,7 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
                     sequenceName: activeSequence.name || 'seq',
                     shots: shotsToZip,
                     type: shotsToZip.length === seqShots.length ? 'sequence' : shotsToZip.every(s => isShotDone(s)) ? 'approved' : 'unapproved',
+                    username: clientUser?.name || currentUser,
                 }),
             });
             

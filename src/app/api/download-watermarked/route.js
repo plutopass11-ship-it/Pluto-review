@@ -58,6 +58,8 @@ export async function GET(request) {
             shotName,
             type,
             fileName: filename,
+            username: user,
+
         }).catch(() => {});
 
         return new Response(res.body, {

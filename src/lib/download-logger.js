@@ -85,6 +85,7 @@ export async function logDownload({
     shotName,
     type,
     fileName,
+    username,
 }) {
     try {
         await ensureDir();
@@ -102,6 +103,8 @@ export async function logDownload({
             shotName: shotName || null,
             type: type || 'unknown',
             fileName: fileName || null,
+            username: username || 'Unknown User',
+
             location: null, // Will be updated asynchronously
         };
         
