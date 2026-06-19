@@ -223,6 +223,12 @@ export async function getClientReviewTasks(projectId) {
       return allowedShorts.includes(shortStatus) || allowedNames.includes(status);
     });
 
+  return mapped;
+}
+
+export async function getPlaylistData(projectId) {
+  const mapped = await getClientReviewTasks(projectId);
+
   // Deduplicate by entity_id (shot ID) only
   // This prevents multiple tasks (e.g. Client Review and Final Delivery) for the same shot appearing as duplicate cards in the playlist.
   const seen = new Map();
@@ -262,9 +268,6 @@ export async function getClientReviewTasks(projectId) {
   }
   return Array.from(seen.values());
 }
-
-// Keep getPlaylistData for compatibility if used elsewhere, aliasing to getClientReviewTasks
-export const getPlaylistData = getClientReviewTasks;
 
 export async function getTaskData(taskId) {
   const task = await fetchKitsuData(`/data/tasks/${taskId}`).catch(() => null);
