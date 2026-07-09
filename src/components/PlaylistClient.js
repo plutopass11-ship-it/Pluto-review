@@ -951,10 +951,13 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
             const doneStatus = taskStatuses.find(s => s.short_name === 'done' || s.name.toLowerCase() === 'done');
             if (!doneStatus) { toast.error('Could not find "Done" status'); setIsSubmitting(false); return; }
 
-            // Check if multi-approver mode
+            // Check if multi-approver mode AND current user is an assigned approver
             const isMultiMode = approvalInfo && approvalInfo.mode === 'multiple' && approvalInfo.assignedApprovers?.length > 0;
+            const isAssignedApprover = isMultiMode && clientUser?.email && approvalInfo.assignedApprovers.some(
+                a => (a.email || a).toLowerCase() === clientUser.email.toLowerCase()
+            );
 
-            if (isMultiMode) {
+            if (isMultiMode && isAssignedApprover) {
                 // Post approval to multi-approver endpoint
                 const approvalRes = await fetch('/api/approvals', {
                     method: 'POST',
