@@ -1021,6 +1021,34 @@ export default function PlaylistClient({ shots, projectId, projectName, currentU
                 
                 // Refresh project-wide approvals
                 refreshProjectApprovals();
+            } else if (isMultiMode && !isAssignedApprover) {
+                // Non-assigned user in multi-mode: post approval comment with WFA status
+                // This keeps the multi-approval workflow intact for the assigned approvers
+                const wfaStatus = taskStatuses.find(s => 
+                    s.short_name === 'wfa' || s.name.toLowerCase() === 'waiting for approval'
+                );
+                const res = await fetch('/api/comment', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        taskId: currentShot.id, 
+                        comment: 'Approved by client',
+                        taskStatusId: wfaStatus?.id || undefined
+                    })
+                });
+                if (!res.ok) throw new Error('Failed to post approval comment');
+                
+                // Update local status to WFA (not done)
+                if (wfaStatus) {
+                    setShotStatuses(prev => ({ ...prev, [currentShot.id]: { name: 'Waiting For Approval', short: 'wfa' } }));
+                }
+                setComments(prev => [{ id: Date.now(), user: clientUser?.name || 'Client (You)', text: 'Approved by client', time: 'Just now', replies: [] }, ...prev]);
+                toast.success('Approval comment posted — awaiting assigned approvers');
+
+                // Refresh approval info
+                fetch(`/api/approvals?taskId=${currentShot.id}&projectId=${projectId}`)
+                    .then(r => r.json())
+                    .then(data => setApprovalInfo(data))
+                    .catch(() => {});
             } else {
                 // Single approver flow
                 const res = await fetch('/api/comment', {
