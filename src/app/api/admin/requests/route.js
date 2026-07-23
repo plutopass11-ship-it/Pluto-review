@@ -1,11 +1,12 @@
 import { getUsers, updateUserStatus, updateUserNickname } from '@/lib/user-store';
+import { validatePinHeader } from '@/lib/pin-store';
 
-function validatePin(request) {
-    return request.headers.get('x-admin-pin') === '9801';
+async function checkPin(request) {
+    return await validatePinHeader(request);
 }
 
 export async function GET(request) {
-    if (!validatePin(request)) {
+    if (!(await checkPin(request))) {
         return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -19,7 +20,7 @@ export async function GET(request) {
 }
 
 export async function POST(request) {
-    if (!validatePin(request)) {
+    if (!(await checkPin(request))) {
         return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

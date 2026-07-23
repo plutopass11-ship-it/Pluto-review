@@ -950,3 +950,128 @@
     color: var(--text-muted);
     font-size: 0.9rem;
 }
+
+/* Settings Tab */
+.settings-tab-content {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.settings-section {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.change-pin-card {
+    padding: 28px;
+    max-width: 480px;
+}
+
+.change-pin-description {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin-bottom: 24px;
+}
+
+.change-pin-form {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.change-pin-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.change-pin-field label {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.pin-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.change-pin-input {
+    width: 100%;
+    padding: 10px 14px;
+    font-size: 1.1rem;
+    letter-spacing: 0.3em;
+    text-align: center;
+    border: 1px solid var(--glass-border);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--text-primary);
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.change-pin-input:focus {
+    border-color: var(--accent-blue);
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+}
+
+.pin-input-wrapper .change-pin-input {
+    padding-right: 42px;
+}
+
+.pin-toggle-visibility {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: color 0.2s;
+}
+
+.pin-toggle-visibility:hover {
+    color: var(--text-primary);
+}
+
+.change-pin-error {
+    font-size: 0.85rem;
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.08);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    padding: 8px 12px;
+    border-radius: 6px;
+}
+
+.change-pin-submit {
+    padding: 10px 24px;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple, #8b5cf6));
+    color: #fff;
+    transition: opacity 0.2s, transform 0.15s;
+    align-self: flex-start;
+}
+
+.change-pin-submit:hover:not(:disabled) {
+    opacity: 0.9;
+    transform: translateY(-1px);
+}
+
+.change-pin-submit:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}

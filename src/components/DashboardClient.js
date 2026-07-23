@@ -2,13 +2,14 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
-import { Download, Filter, Globe, Monitor, Clock, UserCheck, UserX, Shield, Users, Edit3, User } from 'lucide-react';
+import { Download, Filter, Globe, Monitor, Clock, UserCheck, UserX, Shield, Users, Edit3, User, Settings, Lock, Eye, EyeOff } from 'lucide-react';
 import toast from 'react-hot-toast';
 import EmptyState from './shared/EmptyState';
 import './DashboardClient.css';
 
-const DASHBOARD_PIN = '9801';
 const PIN_STORAGE_KEY = 'parallax_dashboard_auth';
+const PIN_VERSION_KEY = 'parallax_pin_version';
+const PIN_VALUE_KEY = 'parallax_admin_pin';
 
 function formatLogTime(isoString) {
     const d = new Date(isoString);
@@ -25,6 +26,17 @@ export default function DashboardClient({ projects, serverError }) {
     const [pinVerified, setPinVerified] = useState(false);
     const [pinInput, setPinInput] = useState('');
     const [pinError, setPinError] = useState(false);
+    const [pinVerifying, setPinVerifying] = useState(false);
+    const [storedPin, setStoredPin] = useState('');
+
+    // Change PIN state
+    const [currentPinInput, setCurrentPinInput] = useState('');
+    const [newPinInput, setNewPinInput] = useState('');
+    const [confirmPinInput, setConfirmPinInput] = useState('');
+    const [changePinError, setChangePinError] = useState('');
+    const [changePinLoading, setChangePinLoading] = useState(false);
+    const [showCurrentPin, setShowCurrentPin] = useState(false);
+    const [showNewPin, setShowNewPin] = useState(false);
     
     // Download logs state
     const [logs, setLogs] = useState([]);
@@ -38,9 +50,35 @@ export default function DashboardClient({ projects, serverError }) {
     const [adminUsersLoading, setAdminUsersLoading] = useState(false);
     const [projectSettings, setProjectSettings] = useState({});
 
+    // Check PIN version on mount — if server version differs, force re-auth
     useEffect(() => {
-        const verified = localStorage.getItem(PIN_STORAGE_KEY) === 'true';
-        setPinVerified(verified);
+        const checkPinVersion = async () => {
+            try {
+                const res = await fetch('/api/admin/pin');
+                const data = await res.json();
+                const serverVersion = data.version;
+                const localVersion = localStorage.getItem(PIN_VERSION_KEY);
+
+                if (localVersion && String(serverVersion) !== String(localVersion)) {
+                    // PIN was changed — force re-auth
+                    localStorage.removeItem(PIN_STORAGE_KEY);
+                    localStorage.removeItem(PIN_VALUE_KEY);
+                    localStorage.removeItem(PIN_VERSION_KEY);
+                    setPinVerified(false);
+                    return;
+                }
+
+                const verified = localStorage.getItem(PIN_STORAGE_KEY) === 'true';
+                const savedPin = localStorage.getItem(PIN_VALUE_KEY) || '';
+                setPinVerified(verified);
+                setStoredPin(savedPin);
+            } catch (err) {
+                // If version check fails, fall back to local check
+                const verified = localStorage.getItem(PIN_STORAGE_KEY) === 'true';
+                setPinVerified(verified);
+            }
+        };
+        checkPinVersion();
     }, []);
 
     useEffect(() => {
@@ -94,7 +132,7 @@ export default function DashboardClient({ projects, serverError }) {
         setAdminUsersLoading(true);
         try {
             const res = await fetch('/api/admin/requests', {
-                headers: { 'x-admin-pin': '9801' }
+                headers: { 'x-admin-pin': storedPin }
             });
             const data = await res.json();
             setAdminUsers(data.users || data || []);
@@ -104,7 +142,7 @@ export default function DashboardClient({ projects, serverError }) {
         } finally {
             setAdminUsersLoading(false);
         }
-    }, []);
+    }, [storedPin]);
 
     useEffect(() => {
         if (activeTab === 'access' && pinVerified) {
@@ -120,7 +158,7 @@ export default function DashboardClient({ projects, serverError }) {
             await Promise.all(projects.map(async (p) => {
                 try {
                     const res = await fetch(`/api/admin/project-settings?projectId=${p.id}`, {
-                        headers: { 'x-admin-pin': '9801' }
+                        headers: { 'x-admin-pin': storedPin }
                     });
                     const data = await res.json();
                     settings[p.id] = data;
@@ -137,7 +175,7 @@ export default function DashboardClient({ projects, serverError }) {
         try {
             const res = await fetch('/api/admin/requests', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'x-admin-pin': '9801' },
+                headers: { 'Content-Type': 'application/json', 'x-admin-pin': storedPin },
                 body: JSON.stringify({ email: userId, action })
             });
             if (res.ok) {
@@ -155,7 +193,7 @@ export default function DashboardClient({ projects, serverError }) {
         try {
             const res = await fetch('/api/admin/requests', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'x-admin-pin': '9801' },
+                headers: { 'Content-Type': 'application/json', 'x-admin-pin': storedPin },
                 body: JSON.stringify({ email: userId, action: 'set-nickname', nickname })
             });
             if (res.ok) {
@@ -173,7 +211,7 @@ export default function DashboardClient({ projects, serverError }) {
         try {
             const res = await fetch('/api/admin/project-settings', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'x-admin-pin': '9801' },
+                headers: { 'Content-Type': 'application/json', 'x-admin-pin': storedPin },
                 body: JSON.stringify({ projectId, ...settingData })
             });
             if (res.ok) {
@@ -188,14 +226,81 @@ export default function DashboardClient({ projects, serverError }) {
         }
     };
 
-    const handlePinSubmit = (e) => {
+    const handlePinSubmit = async (e) => {
         e.preventDefault();
-        if (pinInput === DASHBOARD_PIN) {
-            localStorage.setItem(PIN_STORAGE_KEY, 'true');
-            setPinVerified(true);
-            setPinError(false);
-        } else {
+        setPinVerifying(true);
+        setPinError(false);
+        try {
+            const res = await fetch('/api/admin/pin', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'verify', pin: pinInput })
+            });
+            const data = await res.json();
+            if (data.valid) {
+                // Fetch and store current version
+                const versionRes = await fetch('/api/admin/pin');
+                const versionData = await versionRes.json();
+                localStorage.setItem(PIN_STORAGE_KEY, 'true');
+                localStorage.setItem(PIN_VALUE_KEY, pinInput);
+                localStorage.setItem(PIN_VERSION_KEY, String(versionData.version));
+                setStoredPin(pinInput);
+                setPinVerified(true);
+                setPinError(false);
+            } else {
+                setPinError(true);
+            }
+        } catch (err) {
             setPinError(true);
+        } finally {
+            setPinVerifying(false);
+        }
+    };
+
+    const handleChangePin = async (e) => {
+        e.preventDefault();
+        setChangePinError('');
+
+        if (newPinInput.length !== 4 || !/^\d{4}$/.test(newPinInput)) {
+            setChangePinError('New PIN must be exactly 4 digits');
+            return;
+        }
+        if (newPinInput !== confirmPinInput) {
+            setChangePinError('New PINs do not match');
+            return;
+        }
+        if (currentPinInput === newPinInput) {
+            setChangePinError('New PIN must be different from current PIN');
+            return;
+        }
+
+        setChangePinLoading(true);
+        try {
+            const res = await fetch('/api/admin/pin', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'change', currentPin: currentPinInput, newPin: newPinInput })
+            });
+            const data = await res.json();
+
+            if (res.ok && data.success) {
+                toast.success('PIN changed successfully! All admins will need to re-enter the new PIN.');
+                // Clear local auth so this admin also needs to re-enter
+                localStorage.removeItem(PIN_STORAGE_KEY);
+                localStorage.removeItem(PIN_VALUE_KEY);
+                localStorage.removeItem(PIN_VERSION_KEY);
+                setPinVerified(false);
+                setPinInput('');
+                setCurrentPinInput('');
+                setNewPinInput('');
+                setConfirmPinInput('');
+            } else {
+                setChangePinError(data.error || 'Failed to change PIN');
+            }
+        } catch (err) {
+            setChangePinError('Network error. Please try again.');
+        } finally {
+            setChangePinLoading(false);
         }
     };
 
@@ -298,6 +403,12 @@ export default function DashboardClient({ projects, serverError }) {
                     {pendingUsers.length > 0 && (
                         <span className="pending-badge">{pendingUsers.length}</span>
                     )}
+                </button>
+                <button
+                    className={`dashboard-tab ${activeTab === 'settings' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('settings')}
+                >
+                    <Settings size={15} /> Settings
                 </button>
             </div>
 
@@ -646,6 +757,90 @@ export default function DashboardClient({ projects, serverError }) {
                                 <p>No projects available</p>
                             </div>
                         )}
+                    </section>
+                </div>
+            )}
+
+            {/* Settings Tab */}
+            {activeTab === 'settings' && (
+                <div className="settings-tab-content">
+                    <section className="settings-section">
+                        <div className="access-header">
+                            <Lock size={20} />
+                            <h2>Change Dashboard PIN</h2>
+                        </div>
+                        <div className="change-pin-card glass-panel">
+                            <p className="change-pin-description">
+                                Change the 4-digit PIN used to access this dashboard.
+                                When changed, all admins will be logged out and need to re-enter the new PIN.
+                            </p>
+                            <form onSubmit={handleChangePin} className="change-pin-form">
+                                <div className="change-pin-field">
+                                    <label>Current PIN</label>
+                                    <div className="pin-input-wrapper">
+                                        <input
+                                            type={showCurrentPin ? 'text' : 'password'}
+                                            inputMode="numeric"
+                                            maxLength={4}
+                                            value={currentPinInput}
+                                            onChange={(e) => setCurrentPinInput(e.target.value)}
+                                            placeholder="••••"
+                                            className="change-pin-input"
+                                        />
+                                        <button
+                                            type="button"
+                                            className="pin-toggle-visibility"
+                                            onClick={() => setShowCurrentPin(!showCurrentPin)}
+                                        >
+                                            {showCurrentPin ? <EyeOff size={16} /> : <Eye size={16} />}
+                                        </button>
+                                    </div>
+                                </div>
+                                <div className="change-pin-field">
+                                    <label>New PIN</label>
+                                    <div className="pin-input-wrapper">
+                                        <input
+                                            type={showNewPin ? 'text' : 'password'}
+                                            inputMode="numeric"
+                                            maxLength={4}
+                                            value={newPinInput}
+                                            onChange={(e) => setNewPinInput(e.target.value)}
+                                            placeholder="••••"
+                                            className="change-pin-input"
+                                        />
+                                        <button
+                                            type="button"
+                                            className="pin-toggle-visibility"
+                                            onClick={() => setShowNewPin(!showNewPin)}
+                                        >
+                                            {showNewPin ? <EyeOff size={16} /> : <Eye size={16} />}
+                                        </button>
+                                    </div>
+                                </div>
+                                <div className="change-pin-field">
+                                    <label>Confirm New PIN</label>
+                                    <input
+                                        type="password"
+                                        inputMode="numeric"
+                                        maxLength={4}
+                                        value={confirmPinInput}
+                                        onChange={(e) => setConfirmPinInput(e.target.value)}
+                                        placeholder="••••"
+                                        className="change-pin-input"
+                                    />
+                                </div>
+                                {changePinError && (
+                                    <div className="change-pin-error">{changePinError}</div>
+                                )}
+                                <button
+                                    type="submit"
+                                    className="change-pin-submit"
+                                    disabled={changePinLoading || !currentPinInput || !newPinInput || !confirmPinInput}
+                                >
+                                    {changePinLoading ? 'Changing...' : 'Change PIN'}
+                                </button>
+                            </form>
+                        </div>
                     </section>
                 </div>
             )}
