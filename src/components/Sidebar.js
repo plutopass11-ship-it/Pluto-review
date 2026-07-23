@@ -1,9 +1,24 @@
+'use client';
+
 import Link from 'next/link';
 import Image from 'next/image';
 import { Home, FolderOpen, Settings, LogOut, Download } from 'lucide-react';
 import './Sidebar.css';
 
 export default function Sidebar() {
+    const handleSignOut = async () => {
+        try {
+            await fetch('/api/auth/status', { method: 'DELETE' });
+            sessionStorage.removeItem('parallax_user');
+            localStorage.removeItem('parallax_return_url');
+            window.location.href = '/login';
+        } catch (err) {
+            console.error('Sign out failed:', err);
+            // Force redirect to login even if the API call fails
+            window.location.href = '/login';
+        }
+    };
+
     return (
         <aside className="sidebar glass-panel">
             <div className="sidebar-header">
@@ -19,7 +34,7 @@ export default function Sidebar() {
             </nav>
 
             <div className="sidebar-footer">
-                <button className="nav-item logout-btn">
+                <button className="nav-item logout-btn" onClick={handleSignOut}>
                     <LogOut size={20} />
                     <span>Sign Out</span>
                 </button>
