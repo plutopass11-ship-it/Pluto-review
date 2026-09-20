@@ -86,7 +86,7 @@ export async function GET(request) {
 export async function POST(request) {
     try {
         const body = await request.json();
-        const { taskId, comment, taskStatusId } = body;
+        const { taskId, comment, taskStatusId, isRequirement, projectId, entityId } = body;
 
         if (!taskId) {
             return new Response(JSON.stringify({ error: 'Missing taskId' }), {
@@ -139,6 +139,32 @@ export async function POST(request) {
         }
 
         const data = await res.json();
+
+        // If marked as requirement, persist to previs-requirements tracking
+        if (isRequirement) {
+            try {
+                const fs = await import('fs/promises');
+                const { join } = await import('path');
+                const DB_FILE = join(process.cwd(), 'data', 'previs-requirements.json');
+                let reqData = { tasks: {} };
+                try {
+                    const raw = await fs.readFile(DB_FILE, 'utf-8');
+                    reqData = JSON.parse(raw);
+                } catch {}
+                if (!reqData.tasks) reqData.tasks = {};
+                reqData.tasks[taskId] = {
+                    markedAt: new Date().toISOString(),
+                    entityId: entityId || null,
+                    projectId: projectId || null,
+                    commentCount: (reqData.tasks[taskId]?.commentCount || 0) + 1,
+                };
+                await fs.mkdir(join(process.cwd(), 'data'), { recursive: true });
+                await fs.writeFile(DB_FILE, JSON.stringify(reqData, null, 2), 'utf-8');
+            } catch (err) {
+                console.error('Failed to update previs requirements tracking:', err);
+            }
+        }
+
         return new Response(JSON.stringify(data), {
             status: 200,
             headers: { 'Content-Type': 'application/json' }

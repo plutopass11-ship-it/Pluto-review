@@ -1,4 +1,4 @@
-import { getClientReviewTasks, getProjects } from '@/lib/kitsu';
+import { getClientReviewTasks, getPrevisRequirementsTasks, getProjects } from '@/lib/kitsu';
 import ProjectClient from '@/components/ProjectClient';
 import { promises as fs } from 'fs';
 import { join } from 'path';
@@ -17,8 +17,15 @@ export default async function ProjectPage({ params }) {
     const { id } = await params;
 
     let tasks = [];
+    let previsTasks = [];
     try {
-        tasks = await getClientReviewTasks(id);
+        [tasks, previsTasks] = await Promise.all([
+            getClientReviewTasks(id),
+            getPrevisRequirementsTasks(id).catch(err => {
+                console.error(`Failed to load previs tasks for project ${id}:`, err);
+                return [];
+            })
+        ]);
     } catch (error) {
         console.error(`Failed to load tasks for project ${id}:`, error);
     }
@@ -32,5 +39,14 @@ export default async function ProjectPage({ params }) {
 
     const settings = await getProjectSettings(id);
 
-    return <ProjectClient tasks={tasks} projectName={projectName} projectId={id} showFinalDeliveries={settings.showFinalDeliveries} />;
+    return (
+        <ProjectClient 
+            tasks={tasks} 
+            previsTasks={previsTasks} 
+            projectName={projectName} 
+            projectId={id} 
+            showFinalDeliveries={settings.showFinalDeliveries} 
+        />
+    );
 }
+

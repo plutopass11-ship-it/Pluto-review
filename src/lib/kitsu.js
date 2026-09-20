@@ -1,4 +1,4 @@
-import { formatUtcDateTime } from '@/lib/datetime';
+import { formatUtcDateTime } from './datetime.js';
 
 const kitsuConfig = {
   apiUrl: process.env.KITSU_API_URL || 'http://localhost:3002/api',
@@ -350,3 +350,96 @@ export async function getCurrentUser() {
 export async function getTaskStatuses() {
   return await fetchKitsuData('/data/task-status').catch(() => []);
 }
+
+export async function getPrevisTaskType() {
+  if (!cachedTaskTypes) {
+    cachedTaskTypes = await fetchKitsuData('/data/task-types');
+  }
+  return cachedTaskTypes.find(t => (t.name || '').toLowerCase() === 'previs') || null;
+}
+
+export async function getPrevisReadyStatus() {
+  if (!cachedTaskStatuses) {
+    cachedTaskStatuses = await fetchKitsuData('/data/task-status');
+  }
+  return cachedTaskStatuses.find(s => 
+    (s.short_name || '').toLowerCase() === 'ready' || 
+    (s.name || '').toLowerCase() === 'ready to start'
+  ) || null;
+}
+
+export async function getPrevisRequirementsTasks(projectId) {
+  const previsTaskType = await getPrevisTaskType();
+  if (!previsTaskType) return [];
+
+  const readyStatus = await getPrevisReadyStatus();
+  if (!readyStatus) return [];
+
+  const taskStatuses = await fetchKitsuData('/data/task-status').catch(() => []);
+  const tasks = await fetchKitsuData(`/data/tasks?project_id=${projectId}&task_type_id=${previsTaskType.id}`).catch(() => []);
+  
+  const readyTasks = tasks.filter(t => t.task_status_id === readyStatus.id);
+  if (readyTasks.length === 0) return [];
+
+  const [shotsRes, allPreviews] = await Promise.all([
+    fetchKitsuData(`/data/shots?project_id=${projectId}`).catch(() => []),
+    fetchKitsuData(`/data/preview-files?project_id=${projectId}`).catch(() => [])
+  ]);
+
+  const shotMap = {};
+  shotsRes.forEach(s => {
+    shotMap[s.id] = { name: s.name, sequenceName: s.sequence_name || 'Uncategorized' };
+  });
+
+  const statusMap = {};
+  taskStatuses.forEach(s => statusMap[s.id] = { name: s.name, short_name: s.short_name });
+
+  const taskPreviewsMap = {};
+  allPreviews.forEach(p => {
+    if (!taskPreviewsMap[p.task_id]) taskPreviewsMap[p.task_id] = [];
+    taskPreviewsMap[p.task_id].push(p);
+  });
+  Object.values(taskPreviewsMap).forEach(arr => arr.sort((a, b) => (b.revision || 0) - (a.revision || 0)));
+
+  const mapped = readyTasks.map(task => {
+    const shotData = shotMap[task.entity_id] || { name: task.entity_name || 'Unknown', sequenceName: 'Uncategorized' };
+    const statusInfo = statusMap[task.task_status_id] || {};
+    const previews = taskPreviewsMap[task.id] || [];
+    const latest = getBestPreviewForPlayback(previews);
+
+    return {
+      ...task,
+      entity_name: shotData.name,
+      sequence_name: shotData.sequenceName,
+      task_status_name: statusInfo.name || 'Ready To Start',
+      task_status_short: statusInfo.short_name || 'ready',
+      task_type_name: 'Previs',
+      thumbnail_url: latest ? `/api/proxy-thumbnail?id=${latest.id}` : null,
+      video_url: latest ? `/api/proxy-video?id=${latest.id}&ext=${latest.extension || 'mp4'}` : null,
+      preview_id: latest?.id || null,
+      version_label: latest ? `v${String(latest.revision).padStart(2, '0')}` : 'v01',
+      version_count: previews.length,
+      project_id: task.project_id,
+      preview_status: latest?.status || null,
+    };
+  });
+
+  // Deduplicate by entity_id in case multiple previs tasks exist for the same shot
+  const seen = new Map();
+  for (const item of mapped) {
+    const key = item.entity_id;
+    if (!seen.has(key)) {
+      seen.set(key, item);
+    } else {
+      const existing = seen.get(key);
+      if (item.preview_id && !existing.preview_id) {
+        seen.set(key, item);
+      } else if (item.version_count > existing.version_count) {
+        seen.set(key, item);
+      }
+    }
+  }
+
+  return Array.from(seen.values());
+}
+

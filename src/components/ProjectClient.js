@@ -4,12 +4,13 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Search, Filter, Play, CheckCircle, EyeOff, ChevronDown, Share2, MessageSquare, Layers, Download } from 'lucide-react';
+import { Search, Filter, Play, CheckCircle, EyeOff, ChevronDown, Share2, MessageSquare, Layers, Download, ClipboardList } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import EmptyState from './shared/EmptyState';
+import ShotRequirementsWorkspace from './ShotRequirementsWorkspace';
 import './ProjectClient.css';
 
-export default function ProjectClient({ tasks, projectName, projectId, isClientView = false, showFinalDeliveries = false }) {
+export default function ProjectClient({ tasks, previsTasks = [], projectName, projectId, isClientView = false, showFinalDeliveries = false }) {
     const router = useRouter();
     const [openedShots, setOpenedShots] = useState([]);
     const [selectedShots, setSelectedShots] = useState([]);
@@ -19,6 +20,8 @@ export default function ProjectClient({ tasks, projectName, projectId, isClientV
     const [showFilterMenu, setShowFilterMenu] = useState(false);
     const [showPlaylistMenu, setShowPlaylistMenu] = useState(false);
     const [viewingDeliveries, setViewingDeliveries] = useState(false);
+    const [viewingRequirements, setViewingRequirements] = useState(false);
+    const [reqSequence, setReqSequence] = useState('all');
     const [clientUser, setClientUser] = useState(null);
     
     const filterRef = useRef(null);
@@ -161,6 +164,13 @@ export default function ProjectClient({ tasks, projectName, projectId, isClientV
         const names = [...new Set(baseReviewTasks.map(t => t.sequence_name || 'Uncategorized'))];
         return names.sort();
     }, [baseReviewTasks]);
+
+    // Get unique sequence names for Shot Requirements
+    const previsSequenceNames = useMemo(() => {
+        if (!previsTasks) return [];
+        const names = [...new Set(previsTasks.map(t => t.sequence_name || 'Uncategorized'))];
+        return names.sort();
+    }, [previsTasks]);
 
     // Apply search and status filter
     const filteredReviewTasks = useMemo(() => {
@@ -327,7 +337,7 @@ export default function ProjectClient({ tasks, projectName, projectId, isClientV
     const groupedFinal = groupTasksBySequence(filteredFinalTasks);
 
     return (
-        <div className="project-layout-container animate-fade-in">
+        <div className={`project-layout-container animate-fade-in ${viewingRequirements ? 'requirements-active' : ''}`}>
             {/* Left Side Panel */}
             <aside className="project-sidebar glass-panel">
                 <div className="sidebar-header">
@@ -345,22 +355,29 @@ export default function ProjectClient({ tasks, projectName, projectId, isClientV
                 <div className="sidebar-divider" />
                 <nav className="sidebar-nav">
                     <button 
-                        className={`sidebar-nav-btn ${!viewingDeliveries && statusFilter === 'all' ? 'active' : ''}`}
-                        onClick={() => { setViewingDeliveries(false); setStatusFilter('all'); }}
+                        className={`sidebar-nav-btn ${viewingRequirements ? 'active' : ''}`}
+                        onClick={() => { setViewingRequirements(true); setViewingDeliveries(false); }}
+                    >
+                        <ClipboardList size={16} style={{ color: '#c084fc' }} /> Shot Requirements
+                        {previsTasks?.length > 0 && <span className="sidebar-badge">{previsTasks.length}</span>}
+                    </button>
+                    <button 
+                        className={`sidebar-nav-btn ${!viewingRequirements && !viewingDeliveries && statusFilter === 'all' ? 'active' : ''}`}
+                        onClick={() => { setViewingRequirements(false); setViewingDeliveries(false); setStatusFilter('all'); }}
                     >
                         <Layers size={16} /> Active Review
                     </button>
                     <button 
-                        className={`sidebar-nav-btn ${!viewingDeliveries && (statusFilter === 'approved' || statusFilter === 'done') ? 'active' : ''}`}
-                        onClick={() => { setViewingDeliveries(false); setStatusFilter('approved'); }}
+                        className={`sidebar-nav-btn ${!viewingRequirements && !viewingDeliveries && (statusFilter === 'approved' || statusFilter === 'done') ? 'active' : ''}`}
+                        onClick={() => { setViewingRequirements(false); setViewingDeliveries(false); setStatusFilter('approved'); }}
                     >
                         <CheckCircle size={16} style={{ color: '#3b82f6' }} /> Done Shots
                         {doneShotsCount > 0 && <span className="sidebar-badge">{doneShotsCount}</span>}
                     </button>
                     {showFinalDeliveries && (
                         <button 
-                            className={`sidebar-nav-btn ${viewingDeliveries ? 'active' : ''}`}
-                            onClick={() => setViewingDeliveries(true)}
+                            className={`sidebar-nav-btn ${!viewingRequirements && viewingDeliveries ? 'active' : ''}`}
+                            onClick={() => { setViewingDeliveries(true); setViewingRequirements(false); }}
                         >
                             <CheckCircle size={16} style={{ color: '#10b981' }} /> Delivered Shots
                             {finalDeliveryTasks.length > 0 && <span className="sidebar-badge">{finalDeliveryTasks.length}</span>}
@@ -369,23 +386,49 @@ export default function ProjectClient({ tasks, projectName, projectId, isClientV
                 </nav>
                 <div className="sidebar-divider" />
                 <div className="sidebar-section">
-                    <span className="sidebar-section-title">Playlists</span>
+                    <span className="sidebar-section-title">
+                        {viewingRequirements ? 'Sequences' : 'Playlists'}
+                    </span>
                     <div className="sidebar-playlist-links">
-                        <Link
-                            href={isClientView ? `/shared/${projectId}/playlist` : `/project/${projectId}/playlist`}
-                            className="sidebar-playlist-link"
-                        >
-                            ▶ All Sequences
-                        </Link>
-                        {sequenceNames.map(name => (
-                            <Link
-                                key={name}
-                                href={isClientView ? `/shared/${projectId}/playlist?seq=${encodeURIComponent(name)}` : `/project/${projectId}/playlist?seq=${encodeURIComponent(name)}`}
-                                className="sidebar-playlist-link"
-                            >
-                                ↳ {name}
-                            </Link>
-                        ))}
+                        {viewingRequirements ? (
+                            <>
+                                <button
+                                    type="button"
+                                    className={`sidebar-playlist-link ${reqSequence === 'all' ? 'active' : ''}`}
+                                    onClick={() => setReqSequence('all')}
+                                >
+                                    ▶ All Sequences
+                                </button>
+                                {previsSequenceNames.map(name => (
+                                    <button
+                                        type="button"
+                                        key={name}
+                                        className={`sidebar-playlist-link ${reqSequence === name ? 'active' : ''}`}
+                                        onClick={() => setReqSequence(name)}
+                                    >
+                                        ↳ {name}
+                                    </button>
+                                ))}
+                            </>
+                        ) : (
+                            <>
+                                <Link
+                                    href={isClientView ? `/shared/${projectId}/playlist` : `/project/${projectId}/playlist`}
+                                    className="sidebar-playlist-link"
+                                >
+                                    ▶ All Sequences
+                                </Link>
+                                {sequenceNames.map(name => (
+                                    <Link
+                                        key={name}
+                                        href={isClientView ? `/shared/${projectId}/playlist?seq=${encodeURIComponent(name)}` : `/project/${projectId}/playlist?seq=${encodeURIComponent(name)}`}
+                                        className="sidebar-playlist-link"
+                                    >
+                                        ↳ {name}
+                                    </Link>
+                                ))}
+                            </>
+                        )}
                     </div>
                 </div>
             </aside>
@@ -404,7 +447,17 @@ export default function ProjectClient({ tasks, projectName, projectId, isClientV
                     </div>
                 )}
 
-                {viewingDeliveries ? (
+                {viewingRequirements ? (
+                    <ShotRequirementsWorkspace 
+                        previsTasks={previsTasks}
+                        projectId={projectId}
+                        projectName={projectName}
+                        isClientView={isClientView}
+                        clientUser={clientUser}
+                        selectedSequence={reqSequence}
+                        onSelectSequence={setReqSequence}
+                    />
+                ) : viewingDeliveries ? (
                     /* Delivered Shots View */
                     <div className="project-container">
                         <header className="project-header">

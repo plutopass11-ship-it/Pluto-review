@@ -163,6 +163,14 @@ body:has(.playlist-container) .shared-client-layout {
   overflow: hidden;
 }
 
+body:has(.requirements-workspace) .shared-client-layout,
+body:has(.requirements-workspace) .main-content {
+  padding: 16px 20px;
+  overflow: hidden;
+  height: 100vh;
+  max-height: 100vh;
+}
+
 /* Hide sidebar in playlist cinema mode */
 body:has(.playlist-container) .sidebar {
   display: none;
