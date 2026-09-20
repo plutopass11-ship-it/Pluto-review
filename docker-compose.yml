@@ -25,7 +25,7 @@ services:
         max-file: "3"
   cloudflared:
     image: cloudflare/cloudflared:latest
-    container_name: cloudflared
+    container_name: cloudflared-parallax
     restart: always
     command: tunnel --no-autoupdate --protocol http2 run --token eyJhIjoiN2RhYWI0YmY0Zjc3MTRkNzBiMjFjYjQyN2U1NzU0ZWYiLCJ0IjoiNjFkZTUxNjktMGY2OC00ZDAzLTgxZjUtOWExNTg1ZGU5OTU0IiwicyI6IlpEa3hZV0kxTW1NdE1UUm1aaTAwTUdZekxXSmxZV1l0TlRkallqWTJZbVZsTVRNeCJ9
     depends_on:
